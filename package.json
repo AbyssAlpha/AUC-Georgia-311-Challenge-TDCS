@@ -1,0 +1,20 @@
+{
+  "name": "mableton-311",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Civic complaint app for the City of Mableton. Residents report problems by chat, Gemini sorts them to the right department, and staff review every reply before it goes out.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.4",
+    "vite": "5.4.11"
+  }
+}
