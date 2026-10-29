@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>City of Mableton - Mobile Civic Portal</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary: #0d3b66;
+            --primary-hover: #082642;
+            --accent: #f4d35e;
+            --success: #2a9d8f;
+            --danger: #e76f51;
+            --bg: #f4f6f8;
+            --card: #ffffff;
+            --text-main: #2b2d42;
+            --text-muted: #6c757d;
+            --border: #dee2e6;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0 0 40px 0;
+        }
+
+        /* Mobile Header */
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .brand h1 { margin: 0; font-size: 1.25rem; font-weight: 700; }
+        .brand p { margin: 0; font-size: 0.75rem; opacity: 0.85; }
+
+        .lang-switch { display: flex; background: rgba(255, 255, 255, 0.2); padding: 2px; border-radius: 20px; }
+        .lang-btn { background: transparent; border: none; color: white; padding: 6px 12px; font-weight: 700; border-radius: 14px; font-size: 0.8rem; cursor: pointer; }
+        .lang-btn.active { background: white; color: var(--primary); }
+
+        .container { max-width: 600px; margin: 0 auto; padding: 12px; }
+
+        /* Direct Hotline Card */
+        .call-card {
+            background: #ffffff;
+            border-left: 5px solid var(--primary);
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            border: 1px solid var(--border);
+        }
+        .call-card .info { font-size: 0.85rem; }
+        .call-card strong { display: block; color: var(--primary); font-size: 0.95rem; }
+        .call-btn {
+            background: var(--success);
+            color: white;
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        /* Navigation Tabs */
+        .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #e2e8f0;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        .card {
+            background: var(--card);
+            padding: 16px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            border: 1px solid var(--border);
+        }
+
+        .form-group { margin-bottom: 14px; }
+        label { display: block; font-size: 0.88rem; font-weight: 700; margin-bottom: 6px; }
+        input[type="text"], select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: #fff;
+        }
+
+        #other-category-box { display: none; margin-top: 8px; }
+
+        .btn-primary {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-gps {
+            width: 100%;
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        #map { height: 220px; width: 100%; border-radius: 8px; margin-top: 6px; }
+
+        /* SUCCESS MESSAGE BANNER */
+        #success-screen {
+            display: none;
+            text-align: center;
+            padding: 25px 15px;
+            background: #e8f5e9;
+            border: 2px solid #a5d6a7;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            animation: popIn 0.3s ease-out;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .success-icon { font-size: 3rem; margin-bottom: 10px; }
+        .success-title { color: #1b5e20; font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; }
+        .ticket-number { font-size: 1.1rem; color: #2e7d32; font-weight: bold; background: white; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-bottom: 10px; }
+        .success-desc { color: #388e3c; font-size: 0.95rem; line-height: 1.4; margin-bottom: 15px; }
+
+        /* Chat view */
+        .chat-window { height: 340px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
+        .chat-bubble { background: #e9ecef; padding: 10px 14px; border-radius: 12px; margin-bottom: 8px; max-width: 85%; }
+        .chat-author { font-size: 0.75rem; font-weight: 700; color: var(--primary); }
+        .chat-time { font-size: 0.65rem; color: var(--text-muted); text-align: right; margin-top: 3px; }
+        .chat-input-row { display: flex; gap: 6px; }
+        .chat-input-row input { flex: 1; }
+        .verify-card { background: #eef5fc; border: 1px dashed var(--primary); padding: 14px; border-radius: 8px; text-align: center; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="brand">
+        <h1 data-i18n="portalTitle">City of Mableton</h1>
+        <p data-i18n="portalSub">Official Mobile Civic Portal</p>
+    </div>
+    <div class="lang-switch">
+        <button class="lang-btn active" id="btn-en" onclick="setLanguage('en')">EN</button>
+        <button class="lang-btn" id="btn-es" onclick="setLanguage('es')">ES</button>
+    </div>
+</header>
+
+<div class="container">
+
+    <div class="call-card">
+        <div class="info">
+            <strong data-i18n="callTitle">Mableton City Hall & Services</strong>
+            <span data-i18n="callHours">Public Works & Inquiries (Mon-Fri)</span>
+        </div>
+        <a href="tel:4705185000" class="call-btn">📞 (470) 518-5000</a>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" id="tab-report" onclick="switchTab('report')" data-i18n="tabReport">Report Issue</button>
+        <button class="tab-btn" id="tab-chat" onclick="switchTab('chat')" data-i18n="tabChat">Resident Chat</button>
+    </div>
+
+    <!-- SUCCESS CONFIRMATION BOX (Shows up when submitted) -->
+    <div id="success-screen">
+        <div class="success-icon">✅</div>
+        <div class="success-title" data-i18n="successMsg">Your request has been submitted!</div>
+        <div class="ticket-number" id="ticket-id">Ticket #---</div>
+        <div class="success-desc" data-i18n="successDetails">
+            Mableton city officials have received your issue and dispatched it to the appropriate maintenance crew.
+        </div>
+        <button class="btn-primary" onclick="resetForm()" data-i18n="btnNewReport">Report Another Issue</button>
+    </div>
+
+    <!-- VIEW 1: REPORT AN ISSUE -->
+    <div id="view-report" class="card">
+        <form id="reportForm">
+            <div class="form-group">
+                <label data-i18n="categoryLabel">Issue Category</label>
+                <select id="category" onchange="checkOtherCategory(this.value)" required>
+                    <option value="" data-i18n="selectPrompt">-- Choose an Issue --</option>
+                    <option value="Pothole" data-i18n="optPothole">Pothole / Road Damage</option>
+                    <option value="Streetlight" data-i18n="optStreetlight">Streetlight Outage</option>
+                    <option value="Traffic Sign" data-i18n="optTrafficSign">Damaged / Missing Sign</option>
+                    <option value="Dumping" data-i18n="optDumping">Illegal Trash Dumping</option>
+                    <option value="Drainage" data-i18n="optDrainage">Storm Drain Clogged</option>
+                    <option value="OTHER_SELECTED" data-i18n="optOther">Other (Type your own below)</option>
+                </select>
+
+                <div id="other-category-box">
+                    <input type="text" id="other-category-input" placeholder="Type the specific issue here..." data-i18n-ph="otherPlaceholder">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="descLabel">Description & Details</label>
+                <textarea id="description" rows="3" placeholder="Provide extra details..." required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="photoLabel">Take a Photo (Phone Camera)</label>
+                <input type="file" id="photo" accept="image/*" capture="environment">
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="locationLabel">Pin Location</label>
+                <button type="button" class="btn-gps" onclick="locateUser()" data-i18n="btnGps">📍 Use My Exact GPS Location</button>
+                <div id="map"></div>
+                <input type="hidden" id="latitude" required>
+                <input type="hidden" id="longitude" required>
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn-primary" data-i18n="btnSubmit">Submit to City Services</button>
+        </form>
+    </div>
+
+    <!-- VIEW 2: RESIDENT CHAT -->
+    <div id="view-chat" class="card hidden">
+        <div id="chat-gate" class="verify-card">
+            <h3 data-i18n="verifyTitle">Resident Verification</h3>
+            <p data-i18n="verifyDesc">Confirm physical presence within Mableton city lines to join neighborhood discussion.</p>
+            <input type="text" id="res-name" placeholder="Full Name" style="margin-bottom:8px;">
+            <input type="text" id="res-zip" placeholder="ZIP Code (30126, 30168)" style="margin-bottom:12px;">
+            <button class="btn-primary" onclick="verifyAndJoin()" data-i18n="btnVerify">Verify & Connect</button>
+            <p id="gate-error" style="color:var(--danger); font-size:0.85rem; display:none; margin-top:8px;"></p>
+        </div>
+
+        <div id="chat-panel" class="hidden">
+            <div class="chat-window" id="chat-box"></div>
+            <div class="chat-input-row">
+                <input type="text" id="chat-input" placeholder="Message neighbors..." onkeydown="if(event.key==='Enter') sendChatMessage()">
+                <button class="btn-primary" style="width:auto; padding:0 18px;" onclick="sendChatMessage()" data-i18n="btnSend">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
+<script>
+    const translations = {
+        en: {
+            portalTitle: "City of Mableton",
+            portalSub: "Official Mobile Civic Portal",
+            callTitle: "Mableton City Hall & Services",
+            callHours: "Public Works & Inquiries (Mon-Fri)",
+            tabReport: "Report Issue",
+            tabChat: "Resident Chat",
+            categoryLabel: "Issue Category",
+            selectPrompt: "-- Choose an Issue --",
+            optPothole: "Pothole / Road Damage",
+            optStreetlight: "Streetlight Outage",
+            optTrafficSign: "Damaged / Missing Sign",
+            optDumping: "Illegal Trash Dumping",
+            optDrainage: "Storm Drain Clogged",
+            optOther: "Other (Type your own below)",
+            otherPlaceholder: "Type the specific issue here...",
+            descLabel: "Description & Details",
+            photoLabel: "Take a Photo (Phone Camera)",
+            locationLabel: "Pin Location (Tap map or use GPS)",
+            btnGps: "📍 Use My Exact GPS Location",
+            btnSubmit: "Submit to City Services",
+            successMsg: "Your request has been submitted!",
+            successDetails: "Mableton city officials have received your issue and dispatched it to the appropriate maintenance crew.",
+            btnNewReport: "Report Another Issue",
+            verifyTitle: "Resident Verification",
+            verifyDesc: "Confirm physical presence within Mableton city lines to join neighborhood discussion.",
+            btnVerify: "Verify & Connect",
+            btnSend: "Send",
+            alertLocateErr: "Location not found. Please tap the issue spot on the map."
+        },
+        es: {
+            portalTitle: "Ciudad de Mableton",
+            portalSub: "Portal Cívico Móvil Oficial",
+            callTitle: "Alcaldía y Servicios de Mableton",
+            callHours: "Obras Públicas y Consultas (Lun-Vie)",
+            tabReport: "Reportar Problema",
+            tabChat: "Chat Vecinal",
+            categoryLabel: "Categoría del Problema",
+            selectPrompt: "-- Seleccione un Problema --",
+            optPothole: "Bache / Daño en Calle",
+            optStreetlight: "Luz de Calle Apagada",
+            optTrafficSign: "Señal Dañada o Faltante",
+            optDumping: "Basura Ilegal",
+            optDrainage: "Drenaje Bloqueado",
+            optOther: "Otro (Escriba su propia opción abajo)",
+            otherPlaceholder: "Escriba el problema específico aquí...",
+            descLabel: "Descripción y Detalles",
+            photoLabel: "Tomar Foto (Cámara del Celular)",
+            locationLabel: "Fijar Ubicación (Toque el mapa o use GPS)",
+            btnGps: "📍 Usar Mi Ubicación GPS Exacta",
+            btnSubmit: "Enviar a Servicios de la Ciudad",
+            successMsg: "¡Su solicitud ha sido enviada!",
+            successDetails: "Los funcionarios de Mableton han recibido su reporte y lo enviaron al equipo correspondiente.",
+            btnNewReport: "Reportar Otro Problema",
+            verifyTitle: "Verificación de Residente",
+            verifyDesc: "Confirme su ubicación en Mableton para unirse al chat vecinal.",
+            btnVerify: "Verificar y Conectar",
+            btnSend: "Enviar",
+            alertLocateErr: "Ubicación no encontrada. Por favor marque el mapa."
+        }
+    };
+
+    let currentLang = 'en';
+
+    function setLanguage(lang) {
+        currentLang = lang;
+        document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+        document.getElementById('btn-es').classList.toggle('active', lang === 'es');
+
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (translations[lang][key]) el.innerText = translations[lang][key];
+        });
+
+        document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+            const key = el.getAttribute('data-i18n-ph');
+            if (translations[lang][key]) el.placeholder = translations[lang][key];
+        });
+    }
+
+    function checkOtherCategory(val) {
+        const box = document.getElementById('other-category-box');
+        const input = document.getElementById('other-category-input');
+        if (val === 'OTHER_SELECTED') {
+            box.style.display = 'block';
+            input.required = true;
+            input.focus();
+        } else {
+            box.style.display = 'none';
+            input.required = false;
+        }
+    }
+
+    function switchTab(view) {
+        const isReport = view === 'report';
+        document.getElementById('view-report').classList.toggle('hidden', !isReport);
+        document.getElementById('view-chat').classList.toggle('hidden', isReport);
+        document.getElementById('tab-report').classList.toggle('active', isReport);
+        document.getElementById('tab-chat').classList.toggle('active', !isReport);
+        if (isReport) setTimeout(() => map.invalidateSize(), 200);
+    }
+
+    const map = L.map('map').setView([33.8187, -84.5824], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    let pinMarker;
+    function setPin(lat, lng) {
+        document.getElementById('latitude').value = lat;
+        document.getElementById('longitude').value = lng;
+        if (pinMarker) pinMarker.setLatLng([lat, lng]);
+        else pinMarker = L.marker([lat, lng]).addTo(map);
+    }
+    map.on('click', e => setPin(e.latlng.lat, e.latlng.lng));
+
+    function locateUser() {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                map.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                setPin(pos.coords.latitude, pos.coords.longitude);
+            },
+            () => alert(translations[currentLang].alertLocateErr)
+        );
+    }
+
+    const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+
+    // SUBMIT HANDLER WITH VISUAL SUCCESS MESSAGE
+    document.getElementById('reportForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submitBtn');
+        const lat = document.getElementById('latitude').value;
+        const lng = document.getElementById('longitude').value;
+        
+        if (!lat || !lng) {
+            alert(translations[currentLang].alertLocateErr);
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Submitting...";
+
+        let chosenCategory = document.getElementById('category').value;
+        if (chosenCategory === 'OTHER_SELECTED') {
+            chosenCategory = "Other: " + document.getElementById('other-category-input').value;
+        }
+
+        let base64Image = null;
+        const fileInput = document.getElementById('photo');
+        if (fileInput.files.length > 0) {
+            base64Image = await toBase64(fileInput.files[0]);
+        }
+
+        const payload = {
+            category: chosenCategory,
+            description: document.getElementById('description').value,
+            latitude: parseFloat(lat),
+            longitude: parseFloat(lng),
+            imageBase64: base64Image
+        };
+
+        try {
+            const res = await fetch('/api/reports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const savedReport = await res.json();
+                
+                // HIDE the form and SHOW the big confirmation box
+                document.getElementById('view-report').classList.add('hidden');
+                document.getElementById('ticket-id').innerText = `Ticket #${savedReport.id}`;
+                document.getElementById('success-screen').style.display = 'block';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                alert("Submission failed. Please try again.");
+            }
+        } catch (err) {
+            alert("Connection error. Is the server running?");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = translations[currentLang].btnSubmit;
+        }
+    });
+
+    function resetForm() {
+        document.getElementById('reportForm').reset();
+        document.getElementById('latitude').value = '';
+        document.getElementById('longitude').value = '';
+        if (pinMarker) map.removeLayer(pinMarker);
+        document.getElementById('success-screen').style.display = 'none';
+        document.getElementById('view-report').classList.remove('hidden');
+    }
+
+    // Chat WebSocket Logic
+    let stompClient = null;
+    let verifiedUser = null;
+
+    function verifyAndJoin() {
+        const name = document.getElementById('res-name').value;
+        const zip = document.getElementById('res-zip').value;
+        navigator.geolocation.getCurrentPosition(async pos => {
+            const res = await fetch('/api/chat/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, zip, lat: pos.coords.latitude, lng: pos.coords.longitude })
+            });
+            if (res.ok) {
+                verifiedUser = name;
+                document.getElementById('chat-gate').classList.add('hidden');
+                document.getElementById('chat-panel').classList.remove('hidden');
+                connectWebSocket();
+            } else {
+                document.getElementById('gate-error').innerText = "Location outside Mableton bounds.";
+                document.getElementById('gate-error').style.display = "block";
+            }
+        });
+    }
+
+    function connectWebSocket() {
+        const socket = new SockJS('/ws-chat');
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+        stompClient.connect({}, function () {
+            stompClient.subscribe('/topic/messages', function (messageOutput) {
+                renderMessage(JSON.parse(messageOutput.body));
+            });
+        });
+    }
+
+    function renderMessage(msg) {
+        const box = document.getElementById('chat-box');
+        const b = document.createElement('div');
+        b.className = 'chat-bubble';
+        b.innerHTML = `<div class="chat-author">${msg.senderName} ✔</div><div>${msg.message}</div><div class="chat-time">${msg.timestamp || 'Now'}</div>`;
+        box.appendChild(b);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function sendChatMessage() {
+        const input = document.getElementById('chat-input');
+        if (!input.value.trim() || !stompClient) return;
+        stompClient.send("/app/sendMessage", {}, JSON.stringify({
+            senderName: verifiedUser,
+            message: input.value
+        }));
+        input.value = '';
+    }
+</script>
+</body>
+</html>
