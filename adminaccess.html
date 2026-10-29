@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mableton City Staff - Issue Dispatch</title>
+    <style>
+        :root {
+            --primary: #0d3b66;
+            --bg: #f0f2f5;
+            --card: #ffffff;
+            --open: #e76f51;
+            --progress: #f4a261;
+            --resolved: #2a9d8f;
+        }
+
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        header { background: var(--primary); color: white; padding: 15px 25px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { margin: 0; font-size: 1.5rem; }
+        .refresh-btn { background: #ffffff; color: var(--primary); border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+        .ticket-card { background: var(--card); border-radius: 8px; padding: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.06); border-top: 5px solid var(--open); display: flex; flex-direction: column; justify-content: space-between; }
+        .ticket-card.in-progress { border-top-color: var(--progress); }
+        .ticket-card.resolved { border-top-color: var(--resolved); opacity: 0.7; }
+        .category { font-size: 1.1rem; font-weight: bold; color: var(--primary); margin-bottom: 6px; }
+        .meta { font-size: 0.8rem; color: #666; margin-bottom: 12px; }
+        .description { font-size: 0.95rem; margin-bottom: 15px; line-height: 1.4; }
+        .preview-img { width: 100%; height: 180px; object-fit: cover; border-radius: 6px; margin-bottom: 12px; border: 1px solid #ddd; }
+        .actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+        .nav-btn { display: block; text-align: center; background: #007bff; color: white; text-decoration: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; }
+        .status-group { display: flex; gap: 5px; }
+        .status-btn { flex: 1; border: none; padding: 8px; font-size: 0.8rem; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        .btn-prog { background: #ffeeba; color: #856404; }
+        .btn-res { background: #d4edda; color: #155724; }
+        .badge { display: inline-block; padding: 3px 8px; font-size: 0.75rem; font-weight: bold; border-radius: 4px; color: white; margin-bottom: 8px; }
+        .badge-open { background: var(--open); }
+        .badge-prog { background: var(--progress); }
+        .badge-res { background: var(--resolved); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>Mableton City Works Dispatch</h1>
+        <small>Official Issue Tracking Dashboard</small>
+    </div>
+    <button class="refresh-btn" onclick="fetchReports()">🔄 Refresh Tickets</button>
+</header>
+
+<div class="grid" id="ticketsContainer">
+    <p>Loading reports...</p>
+</div>
+
+<script>
+    async function fetchReports() {
+        const container = document.getElementById('ticketsContainer');
+        try {
+            const res = await fetch('/api/reports?size=100');
+            const data = await res.json();
+            const reports = data.content; // Access paginated content
+
+            if (reports.length === 0) {
+                container.innerHTML = '<p>No tickets have been reported yet!</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            reports.forEach(report => {
+                const card = document.createElement('div');
+                const statusClass = report.status === 'In Progress' ? 'in-progress' : (report.status === 'Resolved' ? 'resolved' : '');
+                card.className = `ticket-card ${statusClass}`;
+
+                let badgeClass = 'badge-open';
+                if (report.status === 'In Progress') badgeClass = 'badge-prog';
+                if (report.status === 'Resolved') badgeClass = 'badge-res';
+
+                card.innerHTML = `
+                    <div>
+                        <span class="badge ${badgeClass}">${report.status}</span>
+                        <div class="category">${report.category}</div>
+                        <div class="meta">Ticket #${report.id} • ${report.createdAt ? new Date(report.createdAt).toLocaleString() : 'Recent'}</div>
+                        <div class="description">${report.description}</div>
+                        ${report.imageBase64 ? `<img src="${report.imageBase64}" class="preview-img" alt="Pothole Photo">` : ''}
+                    </div>
+
+                    <div class="actions">
+                        <!-- Direct Google Maps link -->
+                        <a href="${report.googleMapsUrl}" target="_blank" class="nav-btn">
+                            🗺️ Navigate to GPS Coordinates
+                        </a>
+                        <div class="status-group">
+                            <button class="status-btn btn-prog" onclick="updateStatus(${report.id}, 'In Progress')">Mark In-Progress</button>
+                            <button class="status-btn btn-res" onclick="updateStatus(${report.id}, 'Resolved')">Mark Fixed</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        } catch (err) {
+            container.innerHTML = '<p style="color:red;">Error connecting to dispatch database.</p>';
+        }
+    }
+
+    async function updateStatus(id, newStatus) {
+        await fetch(`/api/reports/${id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+        fetchReports(); // Reload view
+    }
+
+    // Auto-fetch on page load and refresh every 10 seconds
+    fetchReports();
+    setInterval(fetchReports, 10000);
+</script>
+</body>
+</html>
