@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { DEPTS, deptName, deptNames, joinList } from './data.js';
-import { useStore, today, patchComplaint } from './store.js';
-import { draftStaffReply } from './ai.js';
+import { DEPTS, deptName, deptNames, joinList } from '../shared/data.js';
+import { useStore, today, patchComplaint } from '../shared/store.js';
+import { draftStaffReply } from '../shared/ai.js';
 
 const STATUS = { New: ['var(--blue-bg)', 'var(--blue)'], 'In progress': ['var(--amber-bg)', 'var(--amber)'], Resolved: ['var(--ok-bg)', 'var(--green-d)'] };
 const Pill = ({ status }) => <span className="pill" style={{ background: STATUS[status][0], color: STATUS[status][1] }}>{status}</span>;
