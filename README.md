@@ -27,7 +27,7 @@ It opens full screen with its own icon, goes straight to the resident app, and l
 
 1. Describe the problem in plain words in a chat.
 2. Gemini sorts it to the right department (Public Works, Code Enforcement, Parks & Recreation, Planning & Zoning, or City Clerk).
-3. Add a location (home address, map pin, or typed address) and an optional photo.
+3. Add a location (home address, a pin on a real map, or a typed address) and an optional photo. The map fills in the nearest street address, and "Use my location" jumps to where the phone is.
 4. Review the complaint the app wrote for them, change anything, and send it.
 5. Track status and reply to staff in the same thread.
 
@@ -38,6 +38,9 @@ If the issue belongs to another agency (Cobb County Water, Cobb schools, propert
 - One inbox per department, with filters and search.
 - Open a report, click **Draft with Gemini**, then edit and send the reply. The resident sees it in the app.
 - Mark resolved, reopen, or reassign to another department.
+- Each report shows its pin on a map, with an **Open in Google Maps** link for directions.
+- **City map:** every pinned report across all departments, colored by status (new, in progress, resolved), with open counts per department.
+- **Areas of concern:** staff post alerts for places crews should stay clear of, like a gas leak, an active fire, police activity, or an unsafe area. Each alert has a size and clears on its own after 2, 6 or 24 hours. Reports inside an alert area get a warning before anyone sends a crew. Alerts are for staff only and never shown to residents.
 
 ## Responsible AI
 
@@ -47,6 +50,8 @@ If the issue belongs to another agency (Cobb County Water, Cobb schools, propert
 - **The API key is never public.** It lives in a Vercel environment variable and is only used by the server functions in `/api`. It is not in the browser code or in this repo.
 - **Public data only.** Department info and outside agencies come from public sources. Residents, addresses and complaints in the demo are made up.
 - **Abuse limits.** Input length is capped, and each visitor is rate limited so the free quota can't be drained.
+- **Maps share only the pin.** When a resident drops a pin, only its coordinates go to OpenStreetMap to look up the street address. Their location is only read when they tap "Use my location".
+- **Alerts come from people.** Areas of concern are posted by staff, not guessed by AI, and Civi never collects emergency reports. A message that sounds like an emergency still goes straight to the Call 911 screen.
 
 ## Free to run
 
@@ -54,6 +59,7 @@ If the issue belongs to another agency (Cobb County Water, Cobb schools, propert
 |---|---|---|
 | Hosting and server functions | Vercel Hobby | Free, no credit card |
 | AI | Gemini API free tier (Google AI Studio key) | Free, no credit card |
+| Maps | Leaflet with OpenStreetMap tiles and address lookup | Free, no key |
 | Data | Stored in the browser for the demo | Free |
 
 ## Deploy your own copy
@@ -97,6 +103,7 @@ src/
     data.js          Departments, outside agencies, keyword rules, sample data
     store.js         Demo data kept in the browser, synced across tabs
     install.jsx      Install button for the installable app
+    map.jsx          Pin picker, report maps, city map, staff alerts
 public/              Favicon, app manifest, offline service worker, app icons
 docs/                README screenshots
 extras/              Files not used by the app (Java, prototype HTML, XML)
@@ -118,4 +125,6 @@ extras/              Files not used by the app (Java, prototype HTML, XML)
 
 - Sign in and address verification are placeholders until the city picks a method.
 - Demo data is stored in each browser. Use **Reset demo data** on the home page to start fresh.
-- Photos and map pins are simulated.
+- Photos are simulated. Map pins are real.
+- Alerts and the two sample alerts live in the browser like the rest of the demo data, so each device has its own copy.
+- The OpenStreetMap tile and address services are fine for a pilot. A citywide launch should move to a hosted map provider or the city's own GIS.

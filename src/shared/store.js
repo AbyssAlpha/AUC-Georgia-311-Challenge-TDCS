@@ -1,10 +1,10 @@
 // Shared demo store. Lives in the browser, so the resident app and staff portal
 // stay in sync across tabs on the same device. No database and no private data.
 import { useEffect, useState, useCallback } from 'react';
-import { SEED } from './data.js';
+import { SEED, seedAlerts } from './data.js';
 
-const KEY = 'civi.mableton.v1';
-const fresh = () => ({ complaints: JSON.parse(JSON.stringify(SEED)), nextRef: 4817 });
+const KEY = 'civi.mableton.v2';
+const fresh = () => ({ complaints: JSON.parse(JSON.stringify(SEED)), nextRef: 4817, alerts: seedAlerts(Date.now()) });
 
 function load() {
   try {

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DEPTS, deptName, deptNames, joinList } from '../shared/data.js';
 import { useStore, today, patchComplaint } from '../shared/store.js';
 import { draftStaffReply } from '../shared/ai.js';
+import { MapView, CityMap, googleMapsUrl, liveAlerts, alertsNear, ALERT_TYPES, STATUS_COLORS, MABLETON } from '../shared/map.jsx';
 
 const STATUS = { New: ['var(--blue-bg)', 'var(--blue)'], 'In progress': ['var(--amber-bg)', 'var(--amber)'], Resolved: ['var(--ok-bg)', 'var(--green-d)'] };
 const Pill = ({ status }) => <span className="pill" style={{ background: STATUS[status][0], color: STATUS[status][1] }}>{status}</span>;
@@ -28,11 +29,33 @@ export default function Staff() {
   const ql = q.toLowerCase();
   const rows = mine.filter(FILTERS[filter][1]).filter((c) => !ql || [c.name, c.subject, c.summary, c.location, c.id].join(' ').toLowerCase().includes(ql));
   const cur = store.complaints.find((c) => c.id === sel);
+  const [back, setBack] = useState('inbox');
+  const [mapOpts, setMapOpts] = useState({ scope: 'all', resolved: false });
+  const [post, setPost] = useState(null);
+  const center = useRef(MABLETON);
+  const [minute, tick] = useState(0);
+  useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 60000); return () => clearInterval(t); }, []);
+  const alerts = useMemo(() => liveAlerts(store.alerts), [store.alerts, minute]);
+  const mapReports = useMemo(() => store.complaints.filter((c) => c.coords && (mapOpts.resolved || open(c)) && (mapOpts.scope === 'all' || c.depts.includes(dept))), [store.complaints, mapOpts, dept]);
+  const unpinned = store.complaints.filter((c) => !c.coords && open(c)).length;
 
-  useEffect(() => { setView('inbox'); setSel(null); }, [dept]);
+  useEffect(() => { setView((v) => (v === 'map' ? v : 'inbox')); setSel(null); }, [dept]);
 
-  function openDetail(id) {
-    setSel(id); setView('detail'); setReply(''); setAi({ state: 'idle', text: '', source: '' }); setReassignOpen(false);
+  function postAlert() {
+    const now = Date.now();
+    const a = { id: 'AL-' + now, type: post.type, note: post.note.trim() || ALERT_TYPES[post.type].label, coords: { ...center.current }, radius: +post.radius, by: D.staff, posted: now, until: now + post.hours * 3600e3 };
+    update((s) => ({ ...s, alerts: [a, ...(s.alerts || [])] }));
+    setPost(null);
+    flash(ALERT_TYPES[a.type].label + ' alert posted');
+  }
+
+  function clearAlert(id) {
+    update((s) => ({ ...s, alerts: (s.alerts || []).filter((a) => a.id !== id) }));
+    flash('Alert cleared');
+  }
+
+  function openDetail(id, from = 'inbox') {
+    setBack(from); setSel(id); setView('detail'); setReply(''); setAi({ state: 'idle', text: '', source: '' }); setReassignOpen(false);
     patchComplaint(update, id, (c) => ({ ...c, staffUnread: false }));
   }
 
@@ -79,10 +102,13 @@ export default function Staff() {
         <a href="#/" className="brand" style={{ padding: '0 6px', textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif" style={{ fontSize: 22 }}>Civi</span></a>
         <span className="eyebrow" style={{ margin: '2px 0 22px 31px' }}>Mableton staff portal</span>
         {[['open', 'Inbox'], ['resolved', 'Resolved']].map(([k, l]) => (
-          <button key={k} className="nav-btn" aria-current={(view === 'inbox' && filter === k) || (view === 'detail' && k === 'open') ? 'page' : undefined} onClick={() => { setView('inbox'); setFilter(k); }}>
+          <button key={k} className="nav-btn" aria-current={(view === 'inbox' && filter === k) || (view === 'detail' && back === 'inbox' && k === 'open') ? 'page' : undefined} onClick={() => { setView('inbox'); setFilter(k); }}>
             {l}<span className="mono" style={{ fontSize: 12 }}>{cnt(k)}</span>
           </button>
         ))}
+        <button className="nav-btn" aria-current={view === 'map' || (view === 'detail' && back === 'map') ? 'page' : undefined} onClick={() => setView('map')}>
+          City map{alerts.length > 0 && <span className="mono" style={{ fontSize: 12, color: 'var(--red)' }}>{alerts.length} alert{alerts.length > 1 ? 's' : ''}</span>}
+        </button>
         <div style={{ flex: 1 }} />
         <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, padding: '0 6px 16px' }}>AI sorts and drafts. Staff approve every message before a resident sees it.</div>
         {deptSelect}
@@ -90,8 +116,71 @@ export default function Staff() {
       <main>
         <div className="portal-top">
           <a href="#/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif">Civi staff</span></a>
+          <button className="btn ghost sm" onClick={() => setView(view === 'map' ? 'inbox' : 'map')}>{view === 'map' ? 'Inbox' : 'City map'}</button>
           {deptSelect}
         </div>
+
+        {view === 'map' && (
+          <div className="content">
+            <div className="row-between" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div><h1 style={{ margin: 0, fontSize: 28, letterSpacing: '-0.02em' }}>City map</h1>
+                <p style={{ margin: '6px 0 0', color: 'var(--muted)' }}>Every report with a pin, and areas crews should stay clear of.</p></div>
+              <div className="filters" style={{ margin: 0 }}>
+                <button aria-pressed={mapOpts.scope === 'all'} onClick={() => setMapOpts((o) => ({ ...o, scope: 'all' }))}>All departments</button>
+                <button aria-pressed={mapOpts.scope === 'mine'} onClick={() => setMapOpts((o) => ({ ...o, scope: 'mine' }))}>{D.name}</button>
+                <button aria-pressed={mapOpts.resolved} onClick={() => setMapOpts((o) => ({ ...o, resolved: !o.resolved }))}>Show resolved</button>
+              </div>
+            </div>
+            <div className="map-layout">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+                <CityMap reports={mapReports} alerts={alerts} onOpen={(id) => openDetail(id, 'map')} placing={!!post} onCenter={(c) => { center.current = c; }} />
+                <div className="legend" aria-label="Map key">
+                  {Object.entries(STATUS_COLORS).filter(([s]) => mapOpts.resolved || s !== 'Resolved').map(([s, col]) => <span key={s}><i style={{ background: col }} />{s} ({mapReports.filter((c) => c.status === s).length})</span>)}
+                  <span><i className="zone" style={{ borderColor: 'var(--red)' }} />Staff alert area</span>
+                  {unpinned > 0 && <span style={{ color: 'var(--muted)' }}>{unpinned} open report{unpinned > 1 ? 's' : ''} without a pin {unpinned > 1 ? 'are' : 'is'} not shown.</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="row-between"><span className="eyebrow">Areas of concern</span>{!post && <button className="btn sm" onClick={() => setPost({ type: 'gas', note: '', radius: 250, hours: 6 })}>Post an alert</button>}</div>
+                  <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>For staff only. Residents never see these. Emergencies still go to 911 first.</span>
+                  {post && (
+                    <div className="ai-box" style={{ gap: 10 }}>
+                      <b style={{ fontSize: 14 }}>Move the map so the pin is on the area</b>
+                      <label className="field">Type<select className="input" value={post.type} onChange={(e) => setPost((p) => ({ ...p, type: e.target.value }))}>{Object.entries(ALERT_TYPES).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}</select></label>
+                      <label className="field">Note for crews<input className="input" maxLength={160} value={post.note} onChange={(e) => setPost((p) => ({ ...p, note: e.target.value }))} placeholder="For example: gas company on site, keep out" /></label>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <label className="field" style={{ flex: 1 }}>Size<select className="input" value={post.radius} onChange={(e) => setPost((p) => ({ ...p, radius: e.target.value }))}><option value={100}>1 block</option><option value={250}>A few blocks</option><option value={500}>Neighborhood</option></select></label>
+                        <label className="field" style={{ flex: 1 }}>Clears in<select className="input" value={post.hours} onChange={(e) => setPost((p) => ({ ...p, hours: +e.target.value }))}><option value={2}>2 hours</option><option value={6}>6 hours</option><option value={24}>24 hours</option></select></label>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}><button className="btn sm" onClick={postAlert}>Post alert</button><button className="btn ghost sm" onClick={() => setPost(null)}>Cancel</button></div>
+                    </div>
+                  )}
+                  {!alerts.length && !post && <span style={{ fontSize: 14, color: 'var(--muted)' }}>No active alerts.</span>}
+                  {alerts.map((a) => {
+                    const t = ALERT_TYPES[a.type] || ALERT_TYPES.hazard;
+                    const inside = store.complaints.filter((c) => open(c) && alertsNear(c.coords, [a]).length).length;
+                    return (
+                      <div key={a.id} style={{ borderLeft: `4px solid ${t.color}`, paddingLeft: 10, display: 'flex', flexDirection: 'column', gap: 3, fontSize: 14 }}>
+                        <b>{t.label}{a.sample && <span className="eyebrow" style={{ marginLeft: 8 }}>Sample</span>}</b>
+                        <span style={{ lineHeight: 1.45 }}>{a.note}</span>
+                        <span style={{ fontSize: 13, color: 'var(--muted)' }}>{a.by} · clears {new Date(a.until).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}{inside ? ` · ${inside} open report${inside > 1 ? 's' : ''} inside` : ''}</span>
+                        <button className="link" style={{ alignSelf: 'flex-start', padding: '4px 0' }} onClick={() => clearAlert(a.id)}>Clear alert</button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
+                  <span className="eyebrow">Open reports by department</span>
+                  {DEPTS.map((d) => {
+                    const os = store.complaints.filter((c) => open(c) && c.depts.includes(d.id));
+                    return <div key={d.id} className="row-between"><span>{d.name}</span><span className="mono" style={{ fontSize: 13 }}>{os.filter((c) => c.status === 'New').length} new · {os.filter((c) => c.status === 'In progress').length} in progress</span></div>;
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {view === 'inbox' && (
           <div className="content">
@@ -131,11 +220,14 @@ export default function Staff() {
         {view === 'detail' && cur && (
           <div className="content" style={{ gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <button className="link" onClick={() => setView('inbox')}>← Inbox</button>
+              <button className="link" onClick={() => setView(back)}>{back === 'map' ? '← City map' : '← Inbox'}</button>
               <span className="mono" style={{ fontSize: 13, color: 'var(--muted)' }}>{cur.id}</span>
               <Pill status={cur.status} />
             </div>
             <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2, letterSpacing: '-0.02em' }}>{cur.subject}</h1>
+            {open(cur) && alertsNear(cur.coords, alerts).map((a) => (
+              <div key={a.id} className="alert red" role="status"><b>Inside a {ALERT_TYPES[a.type].label.toLowerCase()} alert area</b><span>{a.note} Check before sending a crew.</span></div>
+            ))}
             <div className="detail-grid">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
                 <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -192,6 +284,8 @@ export default function Staff() {
                 <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14 }}>
                   <span className="eyebrow">Details</span>
                   <div><b>Location</b><br />{cur.location}</div>
+                  {cur.coords && <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--line)' }}><MapView key={cur.id} pin={cur.coords} height={170} label={'Map pin for ' + cur.location} /></div>}
+                  <a href={googleMapsUrl(cur)} target="_blank" rel="noreferrer">Open in Google Maps</a>
                   <div><b>Routed to</b><br />{joinList(deptNames(cur.depts))}</div>
                   <div><b>Summary</b><br />{cur.summary}</div>
                   <span className={'ai-tag' + (cur.source === 'gemini' ? '' : ' kw')}>{cur.source === 'gemini' ? 'Sorted by Gemini' : 'Sorted by keyword rules'}</span>

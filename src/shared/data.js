@@ -51,7 +51,6 @@ export function keywordTriage(text) {
 }
 
 export const ME = { name: 'Dana Whitfield', email: 'dana.whitfield@email.com', phone: '(470) 555-0142', home: '4410 Floyd Rd' };
-export const PIN = 'Near 5500 Mableton Pkwy';
 
 const t = (who, text, date) => ({ from: 'staff', who, text, date });
 const ev = (text, date) => ({ event: true, text, date });
@@ -59,21 +58,21 @@ const ev = (text, date) => ({ event: true, text, date });
 export const SEED = [
   {
     id: 'MBL-2026-04815', name: 'Luis Ortega', email: 'l.ortega@email.com', phone: '(678) 555-0187', subject: 'Clogged storm drain',
-    summary: 'Drain is covered in leaves and water pools across the road after rain.', location: 'Hurt Rd at Nickajack Rd', date: 'Oct 29', time: '8:12 AM',
+    summary: 'Drain is covered in leaves and water pools across the road after rain.', location: 'Hurt Rd', coords: { lat: 33.86421, lng: -84.58444 }, date: 'Oct 29', time: '8:12 AM',
     status: 'New', depts: ['pw'], photo: true, source: 'gemini',
     body: "Hello Public Works,\n\nThe storm drain on the corner is completely covered in leaves. After yesterday's rain the water pooled across both lanes.\n\nThank you,\nLuis Ortega",
     thread: [ev('Sent to Public Works', 'Oct 29')],
   },
   {
     id: 'MBL-2026-04809', name: 'Keisha Brown', email: 'keishab@email.com', phone: '(404) 555-0119', subject: 'Faded crosswalk by the elementary school',
-    summary: 'Crosswalk paint is almost gone; kids cross here every morning.', location: 'Church St at Clay Rd', date: 'Oct 28', time: '4:55 PM',
+    summary: 'Crosswalk paint is almost gone; kids cross here every morning.', location: 'Church St at Clay Rd', coords: { lat: 33.82633, lng: -84.58185 }, date: 'Oct 28', time: '4:55 PM',
     status: 'New', depts: ['pw'], photo: false, source: 'gemini',
     body: "Hello Public Works,\n\nThe crosswalk paint near the elementary school is almost gone. Kids cross here every morning and drivers don't seem to see it.\n\nThank you,\nKeisha Brown",
     thread: [ev('Sent to Public Works', 'Oct 28')],
   },
   {
     id: 'MBL-2026-04801', name: 'Andre Collins', email: 'acollins@email.com', phone: '(770) 555-0174', subject: 'Mattresses dumped behind the shopping center',
-    summary: 'Three mattresses and bags of trash left by the back lot.', location: 'Behind 5300 Floyd Rd', date: 'Oct 28', time: '10:03 AM',
+    summary: 'Three mattresses and bags of trash left by the back lot.', location: 'Behind 5300 Old Floyd Rd', coords: { lat: 33.82533, lng: -84.57718 }, date: 'Oct 28', time: '10:03 AM',
     status: 'New', depts: ['ce'], photo: true, source: 'gemini',
     body: 'Hello Code Enforcement,\n\nSomeone left three mattresses and several bags of trash behind the shopping center. It has been there since the weekend.\n\nThank you,\nAndre Collins',
     thread: [ev('Sent to Code Enforcement', 'Oct 28')],
@@ -87,7 +86,7 @@ export const SEED = [
   },
   {
     id: 'MBL-2026-04702', name: ME.name, email: ME.email, phone: ME.phone, subject: 'Streetlight out on Veterans Memorial Hwy',
-    summary: 'Light at the bus stop has been out for two weeks.', location: 'Veterans Memorial Hwy at Old Powder Springs Rd', date: 'Oct 21', time: '6:02 PM',
+    summary: 'Light at the bus stop has been out for two weeks.', location: 'Veterans Memorial Hwy at Old Powder Springs Rd', coords: { lat: 33.81624, lng: -84.59171 }, date: 'Oct 21', time: '6:02 PM',
     status: 'In progress', depts: ['pw'], photo: false, source: 'gemini', unread: true,
     body: "Hello Public Works,\n\nI'd like to report a problem. The streetlight at the bus stop on Veterans Memorial Hwy near Old Powder Springs Rd has been out for about two weeks. It's very dark there at night.\n\nThank you,\nDana Whitfield",
     thread: [
@@ -99,14 +98,14 @@ export const SEED = [
   },
   {
     id: 'MBL-2026-04688', name: 'Priya Nair', email: 'priya.nair@email.com', phone: '(470) 555-0108', subject: 'Cracked sidewalk',
-    summary: 'Raised slab is a tripping hazard near the bus shelter.', location: '2900 Pisgah Rd', date: 'Oct 19', time: '11:20 AM',
+    summary: 'Raised slab is a tripping hazard near the bus shelter.', location: 'Pisgah Rd', coords: { lat: 33.80911, lng: -84.57779 }, date: 'Oct 19', time: '11:20 AM',
     status: 'In progress', depts: ['pw'], photo: true, source: 'gemini',
     body: "Hello Public Works,\n\nA sidewalk slab has lifted about two inches near the bus shelter. I've seen two people trip on it.\n\nThank you,\nPriya Nair",
     thread: [ev('Sent to Public Works', 'Oct 19'), ev('Status changed to In progress', 'Oct 20')],
   },
   {
     id: 'MBL-2026-04650', name: 'Gerald Simms', email: 'gsimms@email.com', phone: '(678) 555-0131', subject: 'Pothole on Mableton Pkwy',
-    summary: 'Deep pothole in the left turn lane.', location: 'Mableton Pkwy at Floyd Rd', date: 'Oct 14', time: '2:45 PM',
+    summary: 'Deep pothole in the left turn lane.', location: 'Mableton Pkwy', coords: { lat: 33.81785, lng: -84.57593 }, date: 'Oct 14', time: '2:45 PM',
     status: 'Resolved', depts: ['pw'], photo: false, source: 'keywords',
     body: "Hello Public Works,\n\nThere's a deep pothole in the left turn lane.\n\nThank you,\nGerald Simms",
     thread: [ev('Sent to Public Works', 'Oct 14'), t('Marcus Bell', 'This was patched this morning. Thanks for letting us know.', 'Oct 16'), ev('Marked resolved by Marcus Bell', 'Oct 16')],
@@ -123,4 +122,10 @@ export const SEED = [
       ev('Marked resolved by Angela Price', 'Oct 22'),
     ],
   },
+];
+
+// Sample staff alerts so the city map has something to show. Made up, marked as samples, and they expire.
+export const seedAlerts = (now) => [
+  { id: 'AL-1', type: 'gas', note: 'Atlanta Gas Light crew on site. Keep crews out until the all clear.', coords: { lat: 33.8238, lng: -84.5789 }, radius: 300, by: 'Marcus Bell', posted: now, until: now + 6 * 3600e3, sample: true },
+  { id: 'AL-2', type: 'police', note: 'Police activity near the bus stop. Hold non urgent visits.', coords: { lat: 33.8168, lng: -84.5905 }, radius: 250, by: 'Angela Price', posted: now, until: now + 3 * 3600e3, sample: true },
 ];

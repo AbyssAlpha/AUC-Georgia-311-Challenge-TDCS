@@ -16,8 +16,9 @@ Civi is a CivIQ product. CivIQ connects residents with their elected officials; 
 - Vite + React 18, plain CSS (`src/styles.css`, design tokens on `:root`). No router library; hash routes `#/`, `#/resident`, `#/staff` in `src/App.jsx`.
 - Vercel serverless functions in `/api` (Node, ESM). Files starting with `_` are helpers, not routes.
 - Gemini via REST (`api/_gemini.js`), model from `GEMINI_MODEL` or `gemini-flash-latest`, JSON output with a response schema.
-- Demo data in browser localStorage (`src/shared/store.js`, key `civi.mableton.v1`), synced across tabs so the resident app and staff portal update each other.
+- Demo data in browser localStorage (`src/shared/store.js`, key `civi.mableton.v2`), synced across tabs so the resident app and staff portal update each other.
 - Installable web app: `public/manifest.webmanifest`, `public/sw.js` (never caches `/api`), icons in `public/icons/`, install button in `src/shared/install.jsx`.
+- Maps in `src/shared/map.jsx`: Leaflet + OpenStreetMap tiles (no key) and Nominatim reverse lookup (keep it to 1 request per second, only on pin moves). Leaflet is loaded lazily. Do not switch to Google Maps JS (needs a billing account); link out to Google Maps instead.
 
 ## Key behavior to preserve
 
@@ -25,6 +26,7 @@ Civi is a CivIQ product. CivIQ connects residents with their elected officials; 
 - `draftStaffReply()` falls back to a template when AI is unavailable. Drafts appear in a dashed "AI draft" box; staff click "Use and edit" then "Send reply".
 - `/api` routes cap input length and rate limit per IP (20 per minute).
 - Out of scope issues (water, schools, property tax, GDOT) point to the outside agency and send nothing.
+- Staff alerts (areas of concern) are posted by staff only, expire, and are never shown to residents or created by AI. Emergencies are never collected; the 911 screen comes first.
 
 ## Commands
 
@@ -45,7 +47,7 @@ Deploy: push to `main` on GitHub; Vercel redeploys automatically. The live repo 
 
 ## Status
 
-- Done: resident chat flow, review and send, complaint threads, departments page, staff inbox per department with search, filters, Gemini drafted replies, resolve, reopen, reassign, installable app with offline shell.
-- Placeholders: sign in, residency verification, photos, and map pins are simulated.
+- Done: resident chat flow, review and send, complaint threads, departments page, staff inbox per department with search, filters, Gemini drafted replies, resolve, reopen, reassign, installable app with offline shell, real map pins, staff city map with status pins and staff alerts.
+- Placeholders: sign in, residency verification, and photos are simulated.
 - Roadmap after Demo Day: wrap in Expo (CivIQ's stack) for the App Store and Google Play, move storage to a real database, real auth, push notifications for staff replies.
 - Other deliverables (not in this repo): two page project brief, demo video, path to adoption plan. The README has a starter adoption plan.

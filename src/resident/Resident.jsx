@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { DEPTS, OUTSIDE, ME, PIN, deptNames, joinList } from '../shared/data.js';
+import { DEPTS, OUTSIDE, ME, deptNames, joinList } from '../shared/data.js';
 import { useStore, today, nowTime, patchComplaint } from '../shared/store.js';
 import { triage } from '../shared/ai.js';
 import { InstallButton } from '../shared/install.jsx';
+import { MapView, lookupAddress, nearMableton, fmtCoords } from '../shared/map.jsx';
 
 const STATUS = { Received: ['var(--blue-bg)', 'var(--blue)'], 'In progress': ['var(--amber-bg)', 'var(--amber)'], Resolved: ['var(--ok-bg)', 'var(--green-d)'] };
 const residentStatus = (s) => (s === 'New' ? 'Received' : s);
@@ -24,7 +25,7 @@ function draftComplaint(s) {
   const issue = s.issue.trim().replace(/([^.!?])$/, '$1.');
   return {
     subject: s.label + where,
-    body: `Hello ${n},\n\nI'd like to report a problem. ${issue}\n\nLocation: ${s.location}, Mableton, GA 30126${s.photo ? "\nI've attached a photo." : ''}\n\nCould you let me know when someone can take a look?\n\nThank you,\n${ME.name}`,
+    body: `Hello ${n},\n\nI'd like to report a problem. ${issue}\n\nLocation: ${s.location}, Mableton, GA 30126${s.coords ? '\nMap pin: ' + fmtCoords(s.coords) : ''}${s.photo ? "\nI've attached a photo." : ''}\n\nCould you let me know when someone can take a look?\n\nThank you,\n${ME.name}`,
   };
 }
 
@@ -34,7 +35,7 @@ export default function Resident() {
   const [auth, setAuth] = useState({ mode: 'signin', email: ME.email, pw: 'mableton1', name: ME.name, err: '' });
   const [verify, setVerify] = useState({ address: ME.home, zip: '30126', state: 'idle', err: '' });
   const [chat, setChat] = useState({ messages: GREET(), step: 'issue', busy: false, input: '', pinOpen: false });
-  const [report, setReport] = useState({ issue: '', depts: [], label: '', summary: '', location: '', photo: false, source: '' });
+  const [report, setReport] = useState({ issue: '', depts: [], label: '', summary: '', location: '', coords: null, photo: false, source: '' });
   const [draft, setDraft] = useState({ subject: '', body: '', addOpen: false });
   const [threadId, setThreadId] = useState(null);
   const [reply, setReply] = useState('');
@@ -71,9 +72,9 @@ export default function Resident() {
     }, wait);
   }
 
-  function pickLocation(loc, pin) {
-    push([pin ? { from: 'user', kind: 'map', text: loc } : { from: 'user', text: loc }], { input: '', pinOpen: false, step: 'wait' });
-    setReport((p) => ({ ...p, location: loc }));
+  function pickLocation(loc, coords) {
+    push([coords ? { from: 'user', kind: 'map', text: loc, coords } : { from: 'user', text: loc }], { input: '', pinOpen: false, step: 'wait' });
+    setReport((p) => ({ ...p, location: loc, coords: coords || null }));
     typing();
     later(() => botSay([{ from: 'bot', text: "Got it. Want to add a photo? It's optional, but it helps the crew find the problem." }], { step: 'photo' }), 700);
   }
@@ -94,13 +95,13 @@ export default function Resident() {
     const t = chat.input.trim();
     if (!t || chat.busy) return;
     if (chat.step === 'issue') sayIssue(t);
-    else if (chat.step === 'location') pickLocation(t, false);
+    else if (chat.step === 'location') pickLocation(t);
   }
 
   function resetChat() {
     timers.current.forEach(clearTimeout);
     setChat({ messages: GREET(), step: 'issue', busy: false, input: '', pinOpen: false });
-    setReport({ issue: '', depts: [], label: '', summary: '', location: '', photo: false, source: '' });
+    setReport({ issue: '', depts: [], label: '', summary: '', location: '', coords: null, photo: false, source: '' });
     setScreen('chat');
   }
 
@@ -116,7 +117,7 @@ export default function Resident() {
       id = 'MBL-2026-' + String(s.nextRef).padStart(5, '0');
       const c = {
         id, name: ME.name, email: ME.email, phone: ME.phone, subject: draft.subject, summary: report.summary || report.issue.slice(0, 110),
-        location: report.location, date: today(), time: nowTime(), status: 'New', depts: [...report.depts], photo: report.photo,
+        location: report.location, coords: report.coords, date: today(), time: nowTime(), status: 'New', depts: [...report.depts], photo: report.photo,
         source: report.source, body: draft.body, thread: [{ event: true, text: 'Sent to ' + joinList(deptNames(report.depts)), date: today() }],
       };
       return { ...s, nextRef: s.nextRef + 1, complaints: [c, ...s.complaints] };
@@ -160,7 +161,7 @@ export default function Resident() {
               <div className="quick">
                 {chat.step === 'issue' && QUICK_ISSUES.map(([t, l]) => <button key={l} onClick={() => sayIssue(t)}>{l}</button>)}
                 {chat.step === 'location' && <>
-                  <button onClick={() => pickLocation(ME.home, false)}>Use my address: {ME.home}</button>
+                  <button onClick={() => pickLocation(ME.home)}>Use my address: {ME.home}</button>
                   <button onClick={() => setChat((c) => ({ ...c, pinOpen: true }))}>Drop a pin on the map</button>
                 </>}
                 {chat.step === 'photo' && <><button onClick={() => pickPhoto(true)}>Add a photo</button><button onClick={() => pickPhoto(false)}>Skip</button></>}
@@ -174,17 +175,7 @@ export default function Resident() {
                 placeholder={{ issue: 'Describe the problem…', location: 'Or type an address…', photo: 'Choose an option above', drafting: 'Drafting…', wait: '…' }[chat.step] || (chat.outcome === 'emergency' ? 'Report stopped. Call 911 if in danger.' : 'Chat ended. Nothing was sent.')} />
               <button aria-label="Send" onClick={submit} disabled={chat.busy || !chat.input.trim() || !['issue', 'location'].includes(chat.step)}>↑</button>
             </div>
-            {chat.pinOpen && (
-              <div className="sheet-bg" onClick={() => setChat((c) => ({ ...c, pinOpen: false }))}>
-                <div className="sheet" onClick={(e) => e.stopPropagation()}>
-                  <b>Drop a pin</b>
-                  <div className="map-art" style={{ height: 180, borderRadius: 12 }} />
-                  <span style={{ color: 'var(--muted)', fontSize: 14 }}>{PIN}, Mableton, GA 30126</span>
-                  <button className="btn" onClick={() => pickLocation(PIN, true)}>Use this location</button>
-                  <button className="link" onClick={() => setChat((c) => ({ ...c, pinOpen: false }))}>Cancel</button>
-                </div>
-              </div>
-            )}
+            {chat.pinOpen && <PinSheet onPick={pickLocation} onCancel={() => setChat((c) => ({ ...c, pinOpen: false }))} />}
           </>
         )}
 
@@ -290,9 +281,57 @@ export default function Resident() {
   );
 }
 
+function PinSheet({ onPick, onCancel }) {
+  const [pin, setPin] = useState(null);
+  const [addr, setAddr] = useState({ text: '', state: 'idle' });
+  const [goTo, setGoTo] = useState(null);
+  const [gps, setGps] = useState('');
+  const ask = useRef(null);
+  useEffect(() => () => ask.current?.abort(), []);
+
+  async function moved(p) {
+    setPin(p);
+    ask.current?.abort();
+    const ac = (ask.current = new AbortController());
+    setAddr({ text: '', state: 'looking' });
+    await new Promise((r) => setTimeout(r, 500));
+    if (ac.signal.aborted) return;
+    const text = await lookupAddress(p, ac.signal);
+    if (!ac.signal.aborted) setAddr(text ? { text, state: 'done' } : { text: '', state: 'none' });
+  }
+
+  function myLocation() {
+    if (!navigator.geolocation) { setGps('Your device cannot share its location. Move the map instead.'); return; }
+    setGps('Finding you…');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setGps(''); setGoTo({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+      () => setGps('Location is off. Move the map instead.'),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
+
+  const where = addr.state === 'done' ? addr.text : pin ? 'Near ' + fmtCoords(pin) : '';
+  return (
+    <div className="sheet-bg" onClick={onCancel}>
+      <div className="sheet" role="dialog" aria-label="Drop a pin" onClick={(e) => e.stopPropagation()}>
+        <div className="row-between"><b>Drop a pin</b><button className="btn ghost sm" onClick={myLocation}>Use my location</button></div>
+        <span style={{ color: 'var(--muted)', fontSize: 14, marginTop: -6 }}>Move the map until the pin sits on the problem. You can also tap a spot.</span>
+        <MapView picker onMove={moved} goTo={goTo} height={240} label="Map. Drag or use the arrow keys to move the pin." />
+        {gps && <span style={{ fontSize: 14, color: 'var(--ink3)' }} role="status">{gps}</span>}
+        <span style={{ fontSize: 15 }} aria-live="polite">
+          {addr.state === 'looking' ? 'Finding the address…' : where ? where + ', Mableton, GA 30126' : ''}
+        </span>
+        {pin && !nearMableton(pin) && <span className="err">This pin looks outside Mableton. You can still send it, and staff will check.</span>}
+        <button className="btn" disabled={!pin || addr.state === 'looking'} onClick={() => onPick(where, pin)}>Use this location</button>
+        <button className="link" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 function ChatMsg({ m, onRestart }) {
   if (m.kind === 'typing') return <div className="bubble bot typing" aria-label="Typing"><i /><i /><i /></div>;
-  if (m.kind === 'map') return <div className="map-msg"><div className="map-art" /><div style={{ padding: '8px 12px', fontSize: 14 }}>{m.text}</div></div>;
+  if (m.kind === 'map') return <div className="map-msg">{m.coords ? <MapView pin={m.coords} height={110} /> : <div className="map-art" />}<div style={{ padding: '8px 12px', fontSize: 14 }}>{m.text}</div></div>;
   if (m.kind === 'photo') return <div className="photo-ph" style={{ alignSelf: 'flex-end', width: 200, height: 130 }}>photo attached</div>;
   if (m.kind === 'emergency') return (
     <div className="alert red" role="alert">
