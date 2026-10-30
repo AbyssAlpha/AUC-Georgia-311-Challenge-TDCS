@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import Resident from './Resident.jsx';
-import Staff from './Staff.jsx';
-import { resetDemo } from './store.js';
+import Resident from './resident/Resident.jsx';
+import Staff from './staff/Staff.jsx';
+import { resetDemo } from './shared/store.js';
 
 const route = () => (window.location.hash.replace(/^#\/?/, '') || 'home').split('/')[0];
 
