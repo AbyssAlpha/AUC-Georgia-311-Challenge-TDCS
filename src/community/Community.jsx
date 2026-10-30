@@ -1,6 +1,6 @@
 // Community tab. Two feeds in one place:
 // City reports: reports staff approved for sharing, with the reactions the resident picked. Never a name or house number.
-// Neighbor posts: residents post to each other. Anyone can report a post or comment, and city staff decide what stays up.
+// Resident posts: residents post to each other. Anyone can report a post or comment, and city staff decide what stays up.
 import React, { useMemo, useState } from 'react';
 import { ME, EMERG, POST_CATS, OTHER_CAT, REPORT_REASONS, HIDE_AT, deptNames, joinList, postButtons, canShare, publicBlock, publicTitle } from '../shared/data.js';
 import { useStore, today, nowTime, toggleReaction, patchPost, patchComment } from '../shared/store.js';
@@ -8,7 +8,7 @@ import { ReactionBar, Icon } from '../shared/reactions.jsx';
 import { CityMap, STATUS_COLORS, blockCoords } from '../shared/map.jsx';
 
 const ME_SHORT = ME.name.split(' ')[0] + ' ' + ME.name.split(' ')[1][0] + '.';
-const STATUS = { New: ['var(--blue-bg)', 'var(--blue)', 'Received'], 'In progress': ['var(--amber-bg)', 'var(--amber)', 'In progress'], Resolved: ['var(--ok-bg)', 'var(--green-d)', 'Resolved'] };
+const STATUS = { New: ['var(--blue-bg)', 'var(--blue)', 'Received'], 'In progress': ['var(--amber-bg)', 'var(--amber)', 'In progress'], Resolved: ['var(--ok-bg)', 'var(--ok)', 'Resolved'] };
 const catOf = (p) => (p.cat === 'other' ? { ...OTHER_CAT, label: p.custom || 'Other' } : POST_CATS.find((c) => c.id === p.cat) || OTHER_CAT);
 const visible = (x) => x.status === 'live' || x.email === ME.email;
 const reporters = (x) => new Set((x.reports || []).map((r) => r.by)).size;
@@ -19,13 +19,13 @@ export default function Community() {
   return (
     <div className="screen"><div className="pad">
       <div><h2 style={{ margin: 0, fontSize: 22 }}>Community</h2>
-        <p style={{ margin: '4px 0 0', color: 'var(--muted)', lineHeight: 1.5 }}>What neighbors in Mableton are seeing and sharing.</p></div>
+        <p style={{ margin: '4px 0 0', color: 'var(--muted)', lineHeight: 1.5 }}>What residents of Mableton are seeing and sharing.</p></div>
       <div className="filters" role="group" aria-label="Feed">
         <button aria-pressed={feed === 'reports'} onClick={() => setFeed('reports')}>City reports</button>
-        <button aria-pressed={feed === 'posts'} onClick={() => setFeed('posts')}>Neighbor posts</button>
+        <button aria-pressed={feed === 'posts'} onClick={() => setFeed('posts')}>Resident posts</button>
         <button aria-pressed={feed === 'map'} onClick={() => setFeed('map')}>Map</button>
       </div>
-      {feed === 'reports' ? <CityReports /> : feed === 'posts' ? <NeighborPosts /> : <ReportsMap />}
+      {feed === 'reports' ? <CityReports /> : feed === 'posts' ? <ResidentPosts /> : <ReportsMap />}
     </div></div>
   );
 }
@@ -82,7 +82,7 @@ function ReportsMap() {
 }
 const NO_ALERTS = [];
 
-function NeighborPosts() {
+function ResidentPosts() {
   const [store, update] = useStore();
   const [cat, setCat] = useState('all');
   const [tag, setTag] = useState('');
@@ -128,7 +128,7 @@ function ReportForm({ onSend, onCancel, what }) {
   );
 }
 
-// Adds a report. Enough reports from different neighbors hide it until staff review it.
+// Adds a report. Enough reports from different residents hide it until staff review it.
 const withReport = (x, r) => {
   const reports = [...(x.reports || []).filter((y) => y.by !== r.by), r];
   const hide = x.status === 'live' && !x.kept && new Set(reports.map((y) => y.by)).size >= HIDE_AT;
@@ -156,7 +156,7 @@ function Post({ p, update, onTag }) {
   return (
     <article className="post" aria-label={cat.label + ' post by ' + p.by}>
       {p.status === 'removed' && mine && <div className="alert red"><b>Removed by city staff</b><span>Reason: {p.removed?.reason}. Only you can see this post now.</span></div>}
-      {p.status === 'hidden' && mine && <div className="alert amber"><b>Hidden while staff review it</b><span>Neighbors reported this post. City staff will decide if it goes back up.</span></div>}
+      {p.status === 'hidden' && mine && <div className="alert amber"><b>Hidden while staff review it</b><span>Other residents reported this post. City staff will decide if it goes back up.</span></div>}
       <div className="row-between" style={{ gap: 8 }}>
         <span className="cat" style={{ background: cat.color }}>{cat.label}</span>
         <span style={{ fontSize: 12, color: 'var(--muted)' }}>{p.date}, {p.time}</span>
@@ -171,7 +171,7 @@ function Post({ p, update, onTag }) {
           : <button className="icon-btn" aria-expanded={reporting} onClick={() => setReporting((r) => !r)}><Icon name="flag" />Report</button>)}
       </div>
       {reporting && <ReportForm what="post" onCancel={() => setReporting(false)} onSend={(r) => { patchPost(update, p.id, (x) => withReport(x, r)); setReporting(false); setThanks('Thanks. City staff will review this post.'); }} />}
-      {thanks && <span role="status" style={{ fontSize: 14, color: 'var(--green-d)' }}>{thanks}</span>}
+      {thanks && <span role="status" style={{ fontSize: 14, color: 'var(--brand-d)' }}>{thanks}</span>}
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {comments.map((c) => (
@@ -228,14 +228,14 @@ function Compose({ onDone }) {
         </select>
       </label>
       {f.cat === 'other' && <label className="field">Your category<input maxLength={30} value={f.custom} onChange={set('custom')} placeholder="For example: Garden club" /></label>}
-      {f.cat === 'missing-person' && <div className="alert red"><b>Call 911 first</b><span>Police can start searching right away. A post helps neighbors keep watch.</span><a href="tel:911">Call 911</a></div>}
+      {f.cat === 'missing-person' && <div className="alert red"><b>Call 911 first</b><span>Police can start searching right away. A post helps other residents keep watch.</span><a href="tel:911">Call 911</a></div>}
       {f.cat === 'suspicious' && <div className="alert amber"><b>Describe what the person did</b><span>Say what you saw them do, where, and when. Clothing can help. Race or appearance alone does not, and can cause harm. If a crime is happening now, call 911.</span></div>}
       <label className="field">What's happening?<textarea rows={5} maxLength={600} value={f.text} onChange={set('text')} /></label>
       {f.cat === 'suspicious' && RACE.test(f.text) && <span className="err" role="status">Your post mentions race or ethnicity. Please focus on what the person did instead.</span>}
       {emergency && (
         <div className="alert red" role="alert">
           <b>This may be an emergency</b>
-          <span>If anyone could be in danger now, call 911 before posting. Neighbors and city staff do not watch this feed around the clock.</span>
+          <span>If anyone could be in danger now, call 911 before posting. Residents and city staff do not watch this feed around the clock.</span>
           <a className="btn" href="tel:911" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: 'var(--red)' }}>Call 911</a>
           <label className="check-row"><input type="checkbox" checked={f.ok911} onChange={(e) => setF((x) => ({ ...x, ok911: e.target.checked }))} /><span>I already called, or it is not an emergency</span></label>
         </div>
@@ -243,7 +243,7 @@ function Compose({ onDone }) {
       <label className="field">Street or area (optional)<input maxLength={40} value={f.area} onChange={set('area')} placeholder="For example: Floyd Rd. No house numbers." /></label>
       <label className="field">Tags (optional)<input value={f.tags} onChange={set('tags')} placeholder="For example: dog, floydrd" /></label>
       {tags.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{tags.map((t) => <span key={t} className="tag" style={{ display: 'inline-flex', alignItems: 'center' }}>#{t}</span>)}</div>}
-      <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>Neighbors see your first name and last initial. Be kind. City staff can take down posts that break the rules.</span>
+      <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>Other residents see your first name and last initial. Be kind. City staff can take down posts that break the rules.</span>
       <button className="btn" disabled={!ready} onClick={post}>Post</button>
       <button className="link" onClick={() => onDone(null)}>Cancel</button>
     </div>

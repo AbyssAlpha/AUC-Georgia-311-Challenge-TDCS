@@ -11,7 +11,7 @@ export const DEPTS = [
 
 export const OUTSIDE = [
   { id: 'water', re: /(water (bill|main|meter|pressure|service|line|leak)|sewer|no water)/i, short: 'Water & sewer', agency: 'Cobb County Water System', what: 'Water and sewer service in Mableton is handled by the Cobb County Water System.', url: 'https://www.cobbcounty.org/water' },
-  { id: 'schools', re: /\b(school|schools|school bus)\b/i, short: 'Public schools', agency: 'Cobb County School District', what: 'Public schools and school buses are run by the Cobb County School District.', url: 'https://www.cobbk12.org' },
+  { id: 'schools', re: /(school (bus|district|board|lunch|enrollment|calendar)|\bteachers?\b|classroom|my (kid|child|son|daughter)('s)? school)/i, short: 'Public schools', agency: 'Cobb County School District', what: 'Public schools and school buses are run by the Cobb County School District.', url: 'https://www.cobbk12.org' },
   { id: 'tax', re: /(property tax|tax bill|tax assess)/i, short: 'Property taxes', agency: 'Cobb County Tax Commissioner', what: 'Property taxes are handled by the Cobb County Tax Commissioner.', url: 'https://www.cobbtax.org' },
   { id: 'gdot', re: /(i-?285|i-?20\b|interstate)/i, short: 'Interstates & state highways', agency: 'Georgia Dept. of Transportation', what: 'Interstates and state highways are maintained by the Georgia Department of Transportation.', url: 'https://www.dot.ga.gov' },
 ];
@@ -135,7 +135,7 @@ export const seedAlerts = (now) => [
   { id: 'AL-2', type: 'police', note: 'Police activity near the bus stop. Hold non urgent visits.', coords: { lat: 33.8168, lng: -84.5905 }, radius: 250, by: 'Angela Price', posted: now, until: now + 3 * 3600e3, sample: true },
 ];
 
-// Neighbors feed. Categories residents pick from, plus "Other" for their own.
+// Resident posts feed. Categories residents pick from, plus "Other" for their own.
 export const POST_CATS = [
   { id: 'missing-person', label: 'Missing person', color: '#A3261C' },
   { id: 'lost-pet', label: 'Lost pet', color: '#B45309' },
@@ -154,7 +154,7 @@ export const POST_CATS = [
 ];
 export const OTHER_CAT = { id: 'other', label: 'Other', color: '#4F5854' };
 export const REPORT_REASONS = ['Harassment or hate', 'Profiling or discrimination', 'False or misleading', 'Shares private information', 'Threats or violence', 'Spam or scam', 'Something else'];
-export const HIDE_AT = 3; // reports from different neighbors before a post is hidden until staff review it
+export const HIDE_AT = 3; // reports from different residents before a post is hidden until staff review it
 
 const c = (id, by, text, date, extra = {}) => ({ id, by, text, date, reports: [], status: 'live', ...extra });
 const r = (by, reason, date, note = '') => ({ by, reason, note, date });
@@ -239,8 +239,8 @@ export function keywordReactions({ issue = '', label = '' }) {
     if (/(school|kids?|children)/i.test(t)) civic.push('kids');
     if (/(sidewalk|crosswalk)/i.test(t)) civic.push('sidewalk');
     if (civic.length < 2) civic.push('traffic');
-    return { set: 'civic', civic: civic.slice(0, 3), reason: 'This is a safety issue, so neighbors can show why it matters and who it affects.', source: 'keywords' };
+    return { set: 'civic', civic: civic.slice(0, 3), reason: 'This is a safety issue, so other residents can show why it matters and who it affects.', source: 'keywords' };
   }
-  if (RECURRING.test(t)) return { set: 'stillbroken', civic: [], reason: 'Problems like this can come back, so neighbors can say if it is still there or looks fixed.', source: 'keywords' };
-  return { set: 'metoo', civic: [], reason: 'Neighbors can confirm they have seen this too, which shows the city how many people it affects.', source: 'keywords' };
+  if (RECURRING.test(t)) return { set: 'stillbroken', civic: [], reason: 'Problems like this can come back, so other residents can say if it is still there or looks fixed.', source: 'keywords' };
+  return { set: 'metoo', civic: [], reason: 'Other residents can confirm they have seen this too, which shows the city how many people it affects.', source: 'keywords' };
 }

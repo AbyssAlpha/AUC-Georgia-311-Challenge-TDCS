@@ -3,6 +3,7 @@ import Resident from './resident/Resident.jsx';
 import Staff from './staff/Staff.jsx';
 import { resetDemo } from './shared/store.js';
 import { InstallButton } from './shared/install.jsx';
+import { Wordmark } from './shared/Logo.jsx';
 
 const route = () => (window.location.hash.replace(/^#\/?/, '') || 'home').split('/')[0];
 
@@ -25,12 +26,12 @@ function Home() {
   return (
     <div className="landing">
       <div className="landing-inner">
-        <div className="brand"><div className="diamond" /><span className="serif" style={{ fontSize: 24 }}>Civi</span><span className="eyebrow" style={{ marginLeft: 4, flex: 1 }}>for the City of Mableton</span><InstallButton small /></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><Wordmark size={40} sub="for the City of Mableton" /><span style={{ flex: 1 }} /><InstallButton small /></div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <span className="eyebrow">Georgia 311 Challenge · Tiny Desk, Civic Style</span>
           <h1>Report a problem in two minutes. Staff get it already sorted.</h1>
           <p className="lead">
-            Residents describe the issue in plain words. Gemini sorts it to the right department and writes it up.
+            Residents describe the issue in plain words. Civi, powered by Gemini, sorts it to the right department and writes it up.
             Staff reply from one inbox, with an AI drafted reply they always review before it is sent.
           </p>
         </div>
@@ -47,7 +48,7 @@ function Home() {
           </a>
         </div>
         <div className="how">
-          <div><b>Sorted on arrival</b><span>Gemini routes each report to one of five departments, or to the right outside agency like Cobb County Water.</span></div>
+          <div><b>Sorted on arrival</b><span>Civi routes each report to one of five departments, or to the right outside agency like Cobb County Water.</span></div>
           <div><b>Safety first</b><span>Emergency words like "I smell gas" are caught on the phone itself and send the resident to 911. No AI is involved in that check.</span></div>
           <div><b>A human approves</b><span>AI only drafts. Nothing reaches a resident until a staff member reads, edits and sends it.</span></div>
         </div>

@@ -5,7 +5,7 @@ import { gemini, guard, clip } from './_gemini.js';
 const CIVIC = ['Unsafe', 'Kids use this', 'Blocks the sidewalk', 'Hurts local businesses', 'Slows traffic'];
 const SETS = ['metoo', 'stillbroken', 'civic'];
 
-const SYSTEM = `You help residents of Mableton, Georgia choose reaction buttons for a city report that neighbors will see.
+const SYSTEM = `You help residents of Mableton, Georgia choose reaction buttons for a city report that other residents will see.
 Pick exactly one set:
 - metoo: one button, "I've seen this too". The default for most open issues. Shows how many people a problem affects.
 - stillbroken: "Still there" and "Looks fixed". For problems that come back or drag on, like storm drains, flooding, streetlights.

@@ -6,14 +6,16 @@ import { ReactionBar } from '../shared/reactions.jsx';
 import Community from '../community/Community.jsx';
 import { InstallButton } from '../shared/install.jsx';
 import { MapView, lookupAddress, nearMableton, fmtCoords } from '../shared/map.jsx';
+import { Logo, Wordmark, Icon } from '../shared/Logo.jsx';
 
-const STATUS = { Received: ['var(--blue-bg)', 'var(--blue)'], 'In progress': ['var(--amber-bg)', 'var(--amber)'], Resolved: ['var(--ok-bg)', 'var(--green-d)'] };
+const STATUS = { Received: ['var(--blue-bg)', 'var(--blue)'], 'In progress': ['var(--amber-bg)', 'var(--amber)'], Resolved: ['var(--ok-bg)', 'var(--ok)'] };
 const residentStatus = (s) => (s === 'New' ? 'Received' : s);
 const Pill = ({ status }) => { const s = residentStatus(status); const [bg, fg] = STATUS[s] || STATUS.Received; return <span className="pill" style={{ background: bg, color: fg }}>{s}</span>; };
 
 let uid = 0;
 const mk = (m) => ({ ...m, key: ++uid });
-const GREET = () => [mk({ from: 'bot', text: `Hi ${ME.name.split(' ')[0]}, I'm Civi. What problem would you like to report? Describe it in your own words.` })];
+const GREET = () => [mk({ from: 'bot', text: `Hi ${ME.name.split(' ')[0]}! I'm Civi. What would you like to report? Tell me in your own words.` })];
+const STEP_NUM = { issue: 1, location: 2, wait: 2, photo: 3, drafting: 3 };
 const QUICK_ISSUES = [
   ["There's a pothole on my street", 'Pothole'],
   ['The streetlight on my street is out', 'Streetlight out'],
@@ -36,7 +38,9 @@ export default function Resident() {
   const [screen, setScreen] = useState('signin');
   const [auth, setAuth] = useState({ mode: 'signin', email: ME.email, pw: 'mableton1', name: ME.name, err: '' });
   const [verify, setVerify] = useState({ address: ME.home, zip: '30126', state: 'idle', err: '' });
-  const [chat, setChat] = useState({ messages: GREET(), step: 'issue', busy: false, input: '', pinOpen: false });
+  const [chat, setChat] = useState({ messages: GREET(), step: 'issue', busy: false, input: '', pinOpen: false, typingAddr: false });
+  const photoUrl = useRef('');
+  const inputRef = useRef(null);
   const [report, setReport] = useState({ issue: '', depts: [], label: '', summary: '', location: '', coords: null, photo: false, source: '' });
   const [draft, setDraft] = useState({ subject: '', body: '', addOpen: false });
   const NO_SHARE = { on: false, sug: null, loading: false, set: 'metoo', civic: [] };
@@ -70,24 +74,56 @@ export default function Resident() {
       if (r.type === 'oos') { botSay([{ kind: 'oos', o: OUTSIDE.find((o) => o.id === r.agency) }], { step: 'stopped', outcome: 'oos' }); return; }
       setReport((p) => ({ ...p, issue: text, depts: r.depts, label: r.label, summary: r.summary, source: r.source }));
       botSay([
-        { from: 'bot', text: 'Thanks. This sounds like a job for', chips: deptNames(r.depts), source: r.source },
-        { from: 'bot', text: 'Where is it? Use your address, drop a pin, or type an address.' },
-      ], { step: 'location' });
+        { from: 'bot', text: 'Got it. This sounds like a job for', chips: deptNames(r.depts), source: r.source },
+        { from: 'bot', text: 'Where is it?' },
+      ], { step: 'location', typingAddr: false });
     }, wait);
   }
 
-  function pickLocation(loc, coords) {
-    push([coords ? { from: 'user', kind: 'map', text: loc, coords } : { from: 'user', text: loc }], { input: '', pinOpen: false, step: 'wait' });
+  function pickLocation(loc, coords, label) {
+    push([{ from: 'user', text: label || loc }], { input: '', pinOpen: false, step: 'wait', typingAddr: false });
     setReport((p) => ({ ...p, location: loc, coords: coords || null }));
     typing();
-    later(() => botSay([{ from: 'bot', text: "Got it. Want to add a photo? It's optional, but it helps the crew find the problem." }], { step: 'photo' }), 700);
+    later(() => botSay([
+      { kind: 'mapconfirm', loc, coords },
+      { from: 'bot', text: "Want to add a photo? It's optional, but it helps the crew find it." },
+    ], { step: 'photo' }), 700);
   }
 
-  function pickPhoto(add) {
-    push([add ? { from: 'user', kind: 'photo' } : { from: 'user', text: 'Skip the photo' }], { step: 'drafting' });
+  function changeLocation() {
+    if (chat.busy) return;
+    push([{ from: 'bot', text: 'No problem. Where is it?' }], { step: 'location', typingAddr: false });
+  }
+
+  function useHere() {
+    if (!navigator.geolocation) { push([{ from: 'bot', text: "This phone can't share its location. Pick another option." }]); return; }
+    typing();
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const addr = await lookupAddress(p);
+        setChat((c) => ({ ...c, busy: false, messages: c.messages.filter((m) => m.kind !== 'typing') }));
+        pickLocation(addr || 'Near ' + fmtCoords(p), p, 'Where I am now');
+      },
+      () => botSay([{ from: 'bot', text: "I couldn't get your location. You can drop a pin or type the address instead." }]),
+      { timeout: 8000, maximumAge: 60000 },
+    );
+  }
+
+  function onPhoto(e) {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (photoUrl.current) URL.revokeObjectURL(photoUrl.current);
+    photoUrl.current = URL.createObjectURL(f);
+    pickPhoto(true, photoUrl.current);
+  }
+
+  function pickPhoto(add, url) {
+    push([add ? { from: 'user', kind: 'photo', url } : { from: 'user', text: 'Skip the photo' }], { step: 'drafting' });
     typing();
     later(() => {
-      botSay([{ from: 'bot', text: 'Thanks. Writing up your complaint now…' }]);
+      botSay([{ from: 'bot', text: add ? 'Thanks, that photo helps the crew find it. Writing up your report now…' : 'Writing up your report now…' }]);
       later(() => {
         setReport((p) => { const next = { ...p, photo: add }; setDraft({ ...draftComplaint(next), addOpen: false }); return next; });
         setScreen('review');
@@ -104,7 +140,7 @@ export default function Resident() {
 
   function resetChat() {
     timers.current.forEach(clearTimeout);
-    setChat({ messages: GREET(), step: 'issue', busy: false, input: '', pinOpen: false });
+    setChat({ messages: GREET(), step: 'issue', busy: false, input: '', pinOpen: false, typingAddr: false });
     setReport({ issue: '', depts: [], label: '', summary: '', location: '', coords: null, photo: false, source: '' });
     setShare(NO_SHARE);
     setScreen('chat');
@@ -162,45 +198,75 @@ export default function Resident() {
   return (
     <div className="phone-wrap">
       <div className="phone" role="application" aria-label="Civi resident app">
-        <div className="appbar">
-          <a href="#/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif" style={{ fontSize: 20 }}>Civi</span></a>
+        {screen !== 'chat' && <div className="appbar">
+          <a href="#/" style={{ textDecoration: 'none', color: 'inherit' }} aria-label="Civi home"><Wordmark size={26} /></a>
           <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><InstallButton small /><span className="eyebrow">Mableton</span></span>
-        </div>
+        </div>}
 
         {screen === 'signin' && <SignIn auth={auth} setAuth={setAuth} onDone={(create) => (create ? setScreen('verify') : resetChat())} />}
         {screen === 'verify' && <Verify v={verify} setV={setVerify} later={later} onDone={resetChat} />}
 
         {screen === 'chat' && (
           <>
-            <div className="chat" ref={chatRef} aria-live="polite">
-              {chat.messages.map((m) => <ChatMsg key={m.key} m={m} onRestart={resetChat} />)}
+            <div className="chat-head">
+              <div className="who">
+                <span className="avatar"><Logo size={36} round title="Civi" /></span>
+                <span style={{ lineHeight: 1.25 }}><b style={{ fontSize: 15 }}>Civi</b><br /><span style={{ fontSize: 13, color: 'var(--muted)' }}>Mableton's city assistant</span></span>
+                {STEP_NUM[chat.step] && <span className="eyebrow" style={{ marginLeft: 'auto' }}>Step {STEP_NUM[chat.step]} of 4</span>}
+              </div>
+              {STEP_NUM[chat.step] && (
+                <div className="progress" role="progressbar" aria-label="Report progress" aria-valuemin={1} aria-valuemax={4} aria-valuenow={STEP_NUM[chat.step]}>
+                  {[1, 2, 3, 4].map((n) => <span key={n} className={n <= STEP_NUM[chat.step] ? 'on' : ''} />)}
+                </div>
+              )}
             </div>
-            {!chat.busy && (
-              <div className="quick">
-                {chat.step === 'issue' && QUICK_ISSUES.map(([t, l]) => <button key={l} onClick={() => sayIssue(t)}>{l}</button>)}
-                {chat.step === 'location' && <>
-                  <button onClick={() => pickLocation(ME.home)}>Use my address: {ME.home}</button>
-                  <button onClick={() => setChat((c) => ({ ...c, pinOpen: true }))}>Drop a pin on the map</button>
-                </>}
-                {chat.step === 'photo' && <><button onClick={() => pickPhoto(true)}>Add a photo</button><button onClick={() => pickPhoto(false)}>Skip</button></>}
-                {chat.step === 'stopped' && <button onClick={resetChat}>Report something else</button>}
+            {report.depts.length > 0 && chat.step !== 'issue' && chat.step !== 'stopped' && (
+              <div className="context">{report.label} · going to {joinList(deptNames(report.depts))}</div>
+            )}
+            <div className="chat" ref={chatRef} aria-live="polite">
+              {chat.messages.map((m) => <ChatMsg key={m.key} m={m} onRestart={resetChat} depts={report.depts} onChange={chat.step === 'photo' && !chat.busy ? changeLocation : null} />)}
+            </div>
+            {!chat.busy && chat.step === 'issue' && (
+              <div className="quick" aria-label="Examples">
+                {QUICK_ISSUES.map(([t, l]) => <button key={l} onClick={() => sayIssue(t)}>{l}</button>)}
               </div>
             )}
-            <div className="composer">
-              <label className="sr" htmlFor="chat-in">Message</label>
-              <input id="chat-in" value={chat.input} onChange={(e) => setChat((c) => ({ ...c, input: e.target.value }))}
-                onKeyDown={(e) => e.key === 'Enter' && submit()} disabled={chat.busy || !['issue', 'location'].includes(chat.step)}
-                placeholder={{ issue: 'Describe the problem…', location: 'Or type an address…', photo: 'Choose an option above', drafting: 'Drafting…', wait: '…' }[chat.step] || (chat.outcome === 'emergency' ? 'Report stopped. Call 911 if in danger.' : 'Chat ended. Nothing was sent.')} />
-              <button aria-label="Send" onClick={submit} disabled={chat.busy || !chat.input.trim() || !['issue', 'location'].includes(chat.step)}>↑</button>
-            </div>
-            {chat.pinOpen && <PinSheet onPick={pickLocation} onCancel={() => setChat((c) => ({ ...c, pinOpen: false }))} />}
+            {!chat.busy && chat.step === 'location' && !chat.typingAddr && (
+              <div className="answers">
+                <button className="opt" onClick={() => pickLocation(ME.home, null, 'My address')}><Icon name="home" /><span>My address<small>{ME.home}</small></span></button>
+                <button className="opt" onClick={() => setChat((c) => ({ ...c, pinOpen: true }))}><Icon name="pin" /><span>Drop a pin on the map</span></button>
+                <button className="opt" onClick={useHere}><Icon name="locate" /><span>Use where I am now<small>Best if you're standing next to it</small></span></button>
+                <button className="opt" onClick={() => { setChat((c) => ({ ...c, typingAddr: true })); setTimeout(() => inputRef.current && inputRef.current.focus(), 50); }}><Icon name="keyboard" /><span>Type an address</span></button>
+              </div>
+            )}
+            {!chat.busy && chat.step === 'photo' && (
+              <div className="answers">
+                <label className="opt"><Icon name="camera" /><span>Take or add a photo<small>Optional, but it helps</small></span>
+                  <input type="file" accept="image/*" capture="environment" onChange={onPhoto} className="sr" /></label>
+                <button className="opt" onClick={() => pickPhoto(false)}><Icon name="skip" /><span>Skip for now</span></button>
+              </div>
+            )}
+            {!chat.busy && chat.step === 'stopped' && (
+              <div className="answers"><button className="opt" onClick={resetChat}><Icon name="refresh" /><span>Report something else</span></button></div>
+            )}
+            {(chat.step === 'issue' || (chat.step === 'location' && chat.typingAddr)) && (
+              <div className="composer">
+                <label className="sr" htmlFor="chat-in">Message</label>
+                <input id="chat-in" ref={inputRef} value={chat.input} onChange={(e) => setChat((c) => ({ ...c, input: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && submit()} disabled={chat.busy}
+                  placeholder={chat.step === 'issue' ? 'Describe the problem…' : 'Street address, like 5300 Floyd Rd'} />
+                <button aria-label="Send" onClick={submit} disabled={chat.busy || !chat.input.trim()}>↑</button>
+              </div>
+            )}
+            {chat.pinOpen && <PinSheet onPick={(loc, p) => pickLocation(loc, p, 'Pin on the map')} onCancel={() => setChat((c) => ({ ...c, pinOpen: false }))} />}
           </>
         )}
 
         {screen === 'review' && (
           <div className="screen"><div className="pad">
-            <div><span className="eyebrow">Step 3 of 3</span><h2 style={{ margin: '6px 0 4px', fontSize: 22 }}>Review your complaint</h2>
-              <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.5 }}>We wrote this from your chat. Change anything before you send it.</p></div>
+            <div className="progress" aria-hidden="true"><span className="on" /><span className="on" /><span className="on" /><span className="on" /></div>
+            <div><span className="eyebrow">Step 4 of 4</span><h2 style={{ margin: '6px 0 4px', fontSize: 26 }}>Review your report</h2>
+              <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.5 }}>Civi wrote this from your chat. Change anything before you send it.</p></div>
             <div className="field"><span>Send to</span>
               <div className="chips" style={{ marginTop: 0 }}>
                 {report.depts.map((id) => <button key={id} className="chip" aria-label={'Remove ' + deptNames([id])[0]} onClick={() => setDepts(report.depts.filter((x) => x !== id))}>{deptNames([id])[0]} ✕</button>)}
@@ -210,11 +276,11 @@ export default function Resident() {
                 {DEPTS.filter((d) => !report.depts.includes(d.id)).map((d) => <button key={d.id} className="link" style={{ textAlign: 'left', padding: 10 }} onClick={() => { setDepts([...report.depts, d.id]); setDraft((x) => ({ ...x, addOpen: false })); }}>{d.name}</button>)}
               </div>}
               {!report.depts.length && <span className="err">Pick at least one department.</span>}
-              <span className={'ai-tag' + (report.source === 'gemini' ? '' : ' kw')} style={{ fontWeight: 500 }}>{report.source === 'gemini' ? 'Sorted by Gemini. You can change it.' : 'Sorted by keyword rules. You can change it.'}</span>
+              <span className={'ai-tag' + (report.source === 'gemini' ? '' : ' kw')} style={{ fontWeight: 500 }}>{report.source === 'gemini' ? 'Sorted by Civi, powered by Gemini. You can change it.' : 'Sorted by Civi with keyword rules. You can change it.'}</span>
             </div>
             <label className="field">Subject<input value={draft.subject} onChange={(e) => setDraft((d) => ({ ...d, subject: e.target.value }))} /></label>
             <label className="field">Message<textarea rows={10} value={draft.body} onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))} /></label>
-            {report.photo && <div className="photo-ph" style={{ height: 120 }}>your photo</div>}
+            {report.photo && (photoUrl.current ? <img src={photoUrl.current} alt="Your photo" style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 12 }} /> : <div className="photo-ph" style={{ height: 120 }}>your photo</div>)}
             <ShareSection report={report} share={share} setShare={setShare} onToggle={toggleShare} civicOk={civicOk} />
             <button className="btn" disabled={!report.depts.length || (shareOn && (share.loading || !civicOk))} onClick={send}>
               {report.depts.length === 1 ? 'Send to ' + deptNames(report.depts)[0] : report.depts.length ? `Send to ${report.depts.length} departments` : 'Send'}
@@ -225,18 +291,18 @@ export default function Resident() {
 
         {screen === 'sent' && (
           <div className="screen"><div className="pad" style={{ alignItems: 'center', textAlign: 'center', paddingTop: 60 }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--green-l)', color: 'var(--green)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30 }}>✓</div>
-            <h2 style={{ margin: 0 }}>Complaint sent</h2>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--brand-l)', color: 'var(--brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30 }}>✓</div>
+            <h2 style={{ margin: 0 }}>Report sent</h2>
             <p style={{ margin: 0, color: 'var(--ink3)', lineHeight: 1.55 }}>{joinList(deptNames(report.depts))} will reply in the app. Most reports get a first reply within 2 business days.</p>
             <div className="card" style={{ padding: '12px 18px' }}><span className="eyebrow">Reference</span><div className="mono" style={{ fontSize: 18, marginTop: 4 }}>{lastRef}</div></div>
-            <button className="btn" style={{ width: '100%' }} onClick={() => openThread(lastRef)}>View my complaint</button>
+            <button className="btn" style={{ width: '100%' }} onClick={() => openThread(lastRef)}>View my report</button>
             <button className="btn ghost" style={{ width: '100%' }} onClick={resetChat}>Report something else</button>
           </div></div>
         )}
 
         {screen === 'list' && (
           <div className="screen"><div className="pad">
-            <h2 style={{ margin: 0, fontSize: 22 }}>My complaints</h2>
+            <h2 style={{ margin: 0, fontSize: 22 }}>My reports</h2>
             {mine.length === 0 && <p style={{ color: 'var(--muted)' }}>Nothing yet.</p>}
             {mine.map((c) => (
               <button key={c.id} className="list-item" onClick={() => openThread(c.id)}>
@@ -251,7 +317,7 @@ export default function Resident() {
         {screen === 'thread' && th && (
           <>
             <div className="screen" ref={threadRef}><div className="pad">
-              <button className="link" style={{ alignSelf: 'flex-start' }} onClick={() => setScreen('list')}>← My complaints</button>
+              <button className="link" style={{ alignSelf: 'flex-start' }} onClick={() => setScreen('list')}>← My reports</button>
               <div className="row-between"><span className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>{th.id}</span><Pill status={th.status} /></div>
               <h2 style={{ margin: 0, fontSize: 20, lineHeight: 1.3 }}>{th.subject}</h2>
               <div className="msg me" style={{ alignSelf: 'stretch', maxWidth: 'none' }}><small>You · {th.date}</small>{th.body}</div>
@@ -284,7 +350,7 @@ export default function Resident() {
 
         {showTabs && (
           <nav className="tabs" aria-label="Main">
-            {[['chat', 'Report'], ['list', 'My complaints'], ['community', 'Community'], ['depts', 'Departments']].map(([k, l]) => (
+            {[['chat', 'Report'], ['list', 'My reports'], ['community', 'Community'], ['depts', 'Departments']].map(([k, l]) => (
               <button key={k} aria-current={tabKey === k ? 'page' : undefined} onClick={() => (k === 'chat' && ['stopped', 'drafting'].includes(chat.step) ? resetChat() : setScreen(k))}>
                 {l}{k === 'list' && mine.some((c) => c.unread) ? ' •' : ''}
               </button>
@@ -321,7 +387,7 @@ function ShareSection({ report, share, setShare, onToggle, civicOk }) {
       {share.on && share.loading && <span style={{ fontWeight: 400, color: 'var(--muted)' }} role="status">Civi is picking reactions that fit…</span>}
       {share.on && sug && (
         <fieldset style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <legend className="sr">Pick the reactions neighbors can tap</legend>
+          <legend className="sr">Pick the reactions other residents can tap</legend>
           <div className="ai-box" style={{ gap: 4 }}>
             <span className={'ai-tag' + (sug.source === 'gemini' ? '' : ' kw')}>{sug.source === 'gemini' ? 'Suggested by Civi' : 'Suggested by keyword rules'}</span>
             <span style={{ fontWeight: 400, lineHeight: 1.5 }}>{sug.reason}</span>
@@ -331,7 +397,7 @@ function ShareSection({ report, share, setShare, onToggle, civicOk }) {
               <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                 <input type="radio" name="react-set" value={id} checked={share.set === id} onChange={() => setShare((x) => ({ ...x, set: id }))} />
                 <b style={{ flex: 1 }}>{s.name}</b>
-                {sug.set === id && <span className="eyebrow" style={{ color: 'var(--green)' }}>{sug.source === 'gemini' ? 'Suggested by Civi' : 'Suggested by keyword rules'}</span>}
+                {sug.set === id && <span className="eyebrow" style={{ color: 'var(--gold-ink)' }}>{sug.source === 'gemini' ? 'Suggested by Civi' : 'Suggested by keyword rules'}</span>}
               </span>
               <span style={{ fontSize: 14, color: 'var(--muted)' }}>{s.desc}</span>
               <ReactionBar keys={setButtons(id, share.civic)} />
@@ -406,10 +472,16 @@ function PinSheet({ onPick, onCancel }) {
   );
 }
 
-function ChatMsg({ m, onRestart }) {
+function ChatMsg({ m, onRestart, depts, onChange }) {
   if (m.kind === 'typing') return <div className="bubble bot typing" aria-label="Typing"><i /><i /><i /></div>;
-  if (m.kind === 'map') return <div className="map-msg">{m.coords ? <MapView pin={m.coords} height={110} /> : <div className="map-art" />}<div style={{ padding: '8px 12px', fontSize: 14 }}>{m.text}</div></div>;
-  if (m.kind === 'photo') return <div className="photo-ph" style={{ alignSelf: 'flex-end', width: 200, height: 130 }}>photo attached</div>;
+  if (m.kind === 'mapconfirm') return (
+    <div className="map-card">
+      <div style={{ padding: '10px 14px' }}>Sending this to <b>{joinList(deptNames(depts)) || 'the city'}</b>. Is this the spot?</div>
+      {m.coords ? <MapView pin={m.coords} height={120} /> : <div className="map-art" />}
+      <div className="foot"><span>{m.loc}</span>{onChange && <button className="link" style={{ padding: 0 }} onClick={onChange}>Change</button>}</div>
+    </div>
+  );
+  if (m.kind === 'photo') return <div className="photo-msg">{m.url ? <img src={m.url} alt="Your photo" /> : <div className="photo-ph">photo attached</div>}</div>;
   if (m.kind === 'emergency') return (
     <div className="alert red" role="alert">
       <b style={{ fontSize: 17 }}>This may be an emergency</b>
@@ -433,7 +505,7 @@ function ChatMsg({ m, onRestart }) {
     <div className={'bubble ' + (m.from === 'user' ? 'user' : 'bot')}>
       {m.text}
       {m.chips && <div className="chips">{m.chips.map((c) => <span key={c} className="chip">{c}</span>)}</div>}
-      {m.source && <div className={'ai-tag' + (m.source === 'gemini' ? '' : ' kw')} style={{ marginTop: 8 }}>{m.source === 'gemini' ? 'Sorted by Gemini' : 'Sorted by keywords'}</div>}
+      {m.source && <div className={'ai-tag' + (m.source === 'gemini' ? '' : ' kw')} style={{ marginTop: 8 }}>{m.source === 'gemini' ? 'Sorted by Civi · Gemini' : 'Sorted by Civi · keyword rules'}</div>}
     </div>
   );
 }

@@ -67,10 +67,10 @@ export default function Moderation({ store, update, staff, flash, onOpen }) {
   return (
     <div className="content">
       <div><h1 style={{ margin: 0, fontSize: 28, letterSpacing: '-0.02em' }}>Community</h1>
-        <p style={{ margin: '6px 0 0', color: 'var(--muted)' }}>Neighbor posts, reports from residents, and city reports shared to the feed.</p></div>
+        <p style={{ margin: '6px 0 0', color: 'var(--muted)' }}>Resident posts, reports about them, and city reports shared to the feed.</p></div>
       <div className="filters">
         <button aria-pressed={tab === 'review'} onClick={() => setTab('review')}>Needs review<span className="mono" style={{ fontSize: 12 }}>{queue.length}</span></button>
-        <button aria-pressed={tab === 'posts'} onClick={() => setTab('posts')}>All neighbor posts<span className="mono" style={{ fontSize: 12 }}>{posts.length}</span></button>
+        <button aria-pressed={tab === 'posts'} onClick={() => setTab('posts')}>All resident posts<span className="mono" style={{ fontSize: 12 }}>{posts.length}</span></button>
         <button aria-pressed={tab === 'shared'} onClick={() => setTab('shared')}>Shared city reports<span className="mono" style={{ fontSize: 12 }}>{shared.length}</span></button>
       </div>
 

@@ -1,6 +1,6 @@
 // Civi service worker. Lets the installed app open fast and load without a signal.
 // AI calls (/api) always go to the network and are never cached.
-const CACHE = 'civi-v1';
+const CACHE = 'civi-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/icons/icon-192.png', '/icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {

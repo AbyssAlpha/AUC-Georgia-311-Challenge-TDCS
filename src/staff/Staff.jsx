@@ -4,9 +4,10 @@ import { useStore, today, patchComplaint } from '../shared/store.js';
 import { draftStaffReply } from '../shared/ai.js';
 import { ReactionBar } from '../shared/reactions.jsx';
 import Moderation from './Moderation.jsx';
+import { Wordmark } from '../shared/Logo.jsx';
 import { MapView, CityMap, googleMapsUrl, liveAlerts, alertsNear, ALERT_TYPES, STATUS_COLORS, MABLETON } from '../shared/map.jsx';
 
-const STATUS = { New: ['var(--blue-bg)', 'var(--blue)'], 'In progress': ['var(--amber-bg)', 'var(--amber)'], Resolved: ['var(--ok-bg)', 'var(--green-d)'] };
+const STATUS = { New: ['var(--blue-bg)', 'var(--blue)'], 'In progress': ['var(--amber-bg)', 'var(--amber)'], Resolved: ['var(--ok-bg)', 'var(--ok)'] };
 const Pill = ({ status }) => <span className="pill" style={{ background: STATUS[status][0], color: STATUS[status][1] }}>{status}</span>;
 const open = (c) => c.status !== 'Resolved';
 const FILTERS = { open: ['All open', open], new: ['New', (c) => c.status === 'New'], progress: ['In progress', (c) => c.status === 'In progress'], resolved: ['Resolved', (c) => c.status === 'Resolved'] };
@@ -108,26 +109,26 @@ export default function Staff() {
   return (
     <div className="portal">
       <aside>
-        <a href="#/" className="brand" style={{ padding: '0 6px', textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif" style={{ fontSize: 22 }}>Civi</span></a>
-        <span className="eyebrow" style={{ margin: '2px 0 22px 31px' }}>Mableton staff portal</span>
+        <a href="#/" style={{ padding: '0 6px', textDecoration: 'none', color: '#fff' }} aria-label="Civi home"><Wordmark size={30} /></a>
+        <span className="eyebrow" style={{ margin: '8px 0 22px 6px' }}>Mableton staff portal</span>
         {[['open', 'Inbox'], ['resolved', 'Resolved']].map(([k, l]) => (
           <button key={k} className="nav-btn" aria-current={(view === 'inbox' && filter === k) || (view === 'detail' && back === 'inbox' && k === 'open') ? 'page' : undefined} onClick={() => { setView('inbox'); setFilter(k); }}>
             {l}<span className="mono" style={{ fontSize: 12 }}>{cnt(k)}</span>
           </button>
         ))}
         <button className="nav-btn" aria-current={view === 'map' || (view === 'detail' && back === 'map') ? 'page' : undefined} onClick={() => setView('map')}>
-          City map{alerts.length > 0 && <span className="mono" style={{ fontSize: 12, color: 'var(--red)' }}>{alerts.length} alert{alerts.length > 1 ? 's' : ''}</span>}
+          City map{alerts.length > 0 && <span className="mono" style={{ fontSize: 12, color: '#FFB4AB' }}>{alerts.length} alert{alerts.length > 1 ? 's' : ''}</span>}
         </button>
         <button className="nav-btn" aria-current={view === 'community' || (view === 'detail' && back === 'community') ? 'page' : undefined} onClick={() => setView('community')}>
-          Community{toReview > 0 && <span className="mono" style={{ fontSize: 12, color: 'var(--red)' }}>{toReview} to review</span>}
+          Community{toReview > 0 && <span className="mono" style={{ fontSize: 12, color: '#FFB4AB' }}>{toReview} to review</span>}
         </button>
         <div style={{ flex: 1 }} />
-        <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, padding: '0 6px 16px' }}>AI sorts and drafts. Staff approve every message before a resident sees it.</div>
+        <div style={{ fontSize: 13, color: '#9AA3B8', lineHeight: 1.5, padding: '0 6px 16px' }}>Civi sorts and drafts. Staff approve every message before a resident sees it.</div>
         {deptSelect}
       </aside>
       <main>
         <div className="portal-top">
-          <a href="#/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif">Civi staff</span></a>
+          <a href="#/" style={{ textDecoration: 'none', color: '#fff' }} aria-label="Civi home"><Wordmark size={26} sub="Staff portal" /></a>
           <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {[['inbox', 'Inbox'], ['map', 'City map'], ['community', 'Community' + (toReview ? ` (${toReview})` : '')]].filter(([k]) => k !== view).map(([k, l]) => <button key={k} className="btn ghost sm" onClick={() => setView(k)}>{l}</button>)}
           </span>
@@ -258,7 +259,7 @@ export default function Staff() {
                 {cur.thread.filter((t) => !t.event || !t.text.startsWith('Sent to')).length === 0 && <span style={{ color: 'var(--muted)', fontSize: 14 }}>No replies yet.</span>}
                 {cur.thread.map((t, i) => t.event
                   ? <div key={i} style={{ fontSize: 13, color: 'var(--muted)', padding: '0 4px' }}>{t.text} · {t.date}</div>
-                  : <div key={i} className="card" style={{ padding: 14, background: t.from === 'staff' ? 'var(--green-xl)' : '#fff' }}>
+                  : <div key={i} className="card" style={{ padding: 14, background: t.from === 'staff' ? 'var(--brand-xl)' : '#fff' }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)', marginBottom: 4 }}>{t.from === 'staff' ? `${t.who}, ${deptNames(cur.depts)[0]}` : cur.name} · {t.date}</div>
                       <div style={{ fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{t.text}</div>
                     </div>)}
@@ -266,10 +267,10 @@ export default function Staff() {
                 {open(cur) && (
                   <div className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="row-between"><b>Reply to {cur.name.split(' ')[0]}</b>
-                      <button className="btn ghost sm" onClick={getDraft} disabled={ai.state === 'loading'}>{ai.state === 'loading' ? 'Drafting…' : '✦ Draft with Gemini'}</button></div>
+                      <button className="btn ghost sm" onClick={getDraft} disabled={ai.state === 'loading'}>{ai.state === 'loading' ? 'Drafting…' : 'Draft with Civi'}</button></div>
                     {ai.state === 'ready' && (
                       <div className="ai-box">
-                        <span className={'ai-tag' + (ai.source === 'gemini' ? '' : ' kw')}>{ai.source === 'gemini' ? 'AI draft from Gemini. Review before sending.' : 'Template draft (AI unavailable). Review before sending.'}</span>
+                        <span className={'ai-tag' + (ai.source === 'gemini' ? '' : ' kw')}>{ai.source === 'gemini' ? 'Civi drafted this with Gemini. Review before sending.' : 'Template draft (AI unavailable). Review before sending.'}</span>
                         <div style={{ fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{ai.text}</div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button className="btn sm" onClick={() => { setReply(ai.text); setAi({ state: 'idle', text: '', source: '' }); }}>Use and edit</button>
@@ -304,7 +305,7 @@ export default function Staff() {
                   <a href={googleMapsUrl(cur)} target="_blank" rel="noreferrer">Open in Google Maps</a>
                   <div><b>Routed to</b><br />{joinList(deptNames(cur.depts))}</div>
                   <div><b>Summary</b><br />{cur.summary}</div>
-                  <span className={'ai-tag' + (cur.source === 'gemini' ? '' : ' kw')}>{cur.source === 'gemini' ? 'Sorted by Gemini' : 'Sorted by keyword rules'}</span>
+                  <span className={'ai-tag' + (cur.source === 'gemini' ? '' : ' kw')}>{cur.source === 'gemini' ? 'Sorted by Civi · Gemini' : 'Sorted by Civi · keyword rules'}</span>
                 </div>
                 <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14 }}>
                   <span className="eyebrow">Community feed</span>
@@ -317,11 +318,11 @@ export default function Staff() {
                       </button>
                       {why
                         ? <span style={{ color: 'var(--muted)', lineHeight: 1.5 }}>{why}</span>
-                        : <span style={{ color: 'var(--muted)', lineHeight: 1.5 }}>Neighbors see the title, street, department, status and date. Never the resident's name or address. You can turn this off at any time.</span>}
+                        : <span style={{ color: 'var(--muted)', lineHeight: 1.5 }}>Residents see the title, street, department, status and date. Never the resident's name or address. You can turn this off at any time.</span>}
                       {cur.share?.asked && canShare(cur) && <>
                         <span>Reactions the resident picked{cur.share.suggested && cur.share.suggested !== cur.share.set ? ' (changed from the suggestion)' : ''}:</span>
                         <ReactionBar c={cur} keys={postButtons(cur)} />
-                        {cur.status === 'Resolved' && <span><b>{reactionCount(cur, 'thanks')}</b> {reactionCount(cur, 'thanks') === 1 ? 'neighbor' : 'neighbors'} thanked the crew.</span>}
+                        {cur.status === 'Resolved' && <span><b>{reactionCount(cur, 'thanks')}</b> {reactionCount(cur, 'thanks') === 1 ? 'resident' : 'residents'} thanked the crew.</span>}
                       </>}
                     </>;
                   })()}

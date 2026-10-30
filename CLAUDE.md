@@ -10,6 +10,15 @@ Civi is a CivIQ product. CivIQ connects residents with their elected officials; 
 - **API key best practices.** `GEMINI_API_KEY` lives only in Vercel environment variables and is read only by `/api` server functions. Never put it in `src/`, never commit `.env` files.
 - Judging criteria: civic impact, working prototype, equity and accessibility, responsible data use, feasibility and cost, communication.
 
+## Design system
+
+- Logo: the "Chat C" mark in `src/shared/Logo.jsx` (C shaped speech bubble, gold dot is Civi listening). Use `<Logo />` and `<Wordmark />`, never redraw it.
+- Colors match CivIQ: navy `#0A0E1A`, electric blue `#1D6FE8` (all actions and buttons), cream `#F6F3EC` page background. Civi's own accent is gold `#F2C46D`, used only for things Civi or AI did ("Sorted by Civi", drafts, the context banner) and for new items.
+- Fonts match CivIQ: Playfair Display for h1 and h2, DM Sans for everything else.
+- Staff portal uses a navy sidebar so it feels official; the resident app stays light and friendly.
+- Resident chat is a rich chat plus guided steps: Civi header with a 4 step progress bar (issue, place, photo, review), a gold context banner once sorted, a map confirmation card, inline photos, and big answer cards for location and photo. Location options are my address, drop a pin, use where I am now (browser geolocation), and type an address.
+- Label AI work as Civi but keep Gemini visible for transparency, like "Sorted by Civi · Gemini".
+
 ## Stack
 
 - Layout: `src/resident/` (resident app), `src/staff/` (staff portal and `Moderation.jsx`), `src/community/` (Community tab), `src/shared/` (ai, data, store, map, reactions, install button used by both). `extras/` holds teammate files the app does not use.
@@ -29,7 +38,7 @@ Civi is a CivIQ product. CivIQ connects residents with their elected officials; 
 - Staff alerts (areas of concern) are posted by staff only, expire, and are never shown to residents or created by AI. Emergencies are never collected; the 911 screen comes first.
 - Community feed: a city report is shown only if the resident ticked share (`share.asked`) AND staff turned on `shared`. Show only `publicTitle`, `publicBlock` (no house numbers), department, status, date. Never name, email, phone or address. `canShare()` blocks Code Enforcement reports. The resident Community Map is view only, shows the same shared reports with pins rounded by `blockCoords()` (about one block), and never shows staff alerts.
 - Reaction sets are fixed: metoo, stillbroken, civic (2 or 3 of the 5 CIVIC labels). Thank the crew is added automatically when Resolved. `/api/suggest-reactions` and `suggestReactions()` (6s timeout) must validate against the fixed lists; fallback is `keywordReactions()`. Label source as "Suggested by Civi" (Gemini) or "Suggested by keyword rules".
-- Neighbor posts: residents report posts and comments; staff keep or take down with a reason. 3 reports from different people hide a post until staff review. AI never moderates.
+- Resident posts: residents report posts and comments; staff keep or take down with a reason. 3 reports from different people hide a post until staff review. AI never moderates.
 
 ## Commands
 
@@ -46,11 +55,12 @@ Deploy: push to `main` on GitHub; Vercel redeploys automatically. The live repo 
 
 - No em dashes or en dashes anywhere. Use commas, periods, or parentheses.
 - Plain, warm, short sentences. Sentence case for buttons and headings.
+- Always call the people who use the app "residents". Never "citizens", "users", "neighbors", or "constituents" in user facing copy. Civi serves everyone who lives in Mableton, regardless of citizenship.
 - Accessibility matters (equity is a judging criterion): real labels on inputs, visible focus, 16px+ inputs on mobile, no horizontal scroll at 390px wide.
 
 ## Status
 
-- Done: resident chat flow, review and send, complaint threads, departments page, staff inbox per department with search, filters, Gemini drafted replies, resolve, reopen, reassign, installable app with offline shell, real map pins, staff city map with status pins and staff alerts, Community tab (shared city reports with reaction sets, a view only map of them and Thank the crew, neighbor posts with categories, custom categories, tags, comments, reporting), AI suggested reactions with keyword fallback, staff share toggle and community moderation.
-- Placeholders: sign in, residency verification, and photos are simulated.
-- Roadmap after Demo Day: wrap in Expo (CivIQ's stack) for the App Store and Google Play, move storage to a real database, real auth, push notifications for staff replies.
+- Done: resident chat flow, review and send, complaint threads, departments page, staff inbox per department with search, filters, Gemini drafted replies, resolve, reopen, reassign, installable app with offline shell, real map pins, staff city map with status pins and staff alerts, Community tab (shared city reports with reaction sets, a view only map of them and Thank the crew, resident posts with categories, custom categories, tags, comments, reporting), AI suggested reactions with keyword fallback, staff share toggle and community moderation.
+- Placeholders: sign in and residency verification are simulated. Photos show on the device but are not uploaded or saved with the report.
+- Roadmap after Demo Day: wrap the Vite build with Capacitor for the App Store and Google Play (reuses these React screens as is; Expo would mean rewriting them in React Native). Android builds in Android Studio on Windows; iOS needs a Mac with Xcode. Apple rejects plain website wrappers, so add native features first: push notifications for staff replies and real camera photos. Also move storage to a real database and add real auth.
 - Other deliverables (not in this repo): two page project brief, demo video, path to adoption plan. The README has a starter adoption plan.
