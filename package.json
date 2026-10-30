@@ -1,9 +1,9 @@
 {
-  "name": "mableton-311",
+  "name": "civi",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Civic complaint app for the City of Mableton. Residents report problems by chat, Gemini sorts them to the right department, and staff review every reply before it goes out.",
+  "description": "Civi, a CivIQ product. Civic complaint app for the City of Mableton. Residents report problems by chat, Gemini sorts them to the right department, and staff review every reply before it goes out.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

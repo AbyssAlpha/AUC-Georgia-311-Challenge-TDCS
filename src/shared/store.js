@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { SEED } from './data.js';
 
-const KEY = 'mableton311.v1';
+const KEY = 'civi.mableton.v1';
 const fresh = () => ({ complaints: JSON.parse(JSON.stringify(SEED)), nextRef: 4817 });
 
 function load() {

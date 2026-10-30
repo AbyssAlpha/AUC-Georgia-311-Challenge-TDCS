@@ -76,8 +76,8 @@ export default function Staff() {
   return (
     <div className="portal">
       <aside>
-        <a href="#/" className="brand" style={{ padding: '0 6px', textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif" style={{ fontSize: 19 }}>City of Mableton</span></a>
-        <span className="eyebrow" style={{ margin: '2px 0 22px 31px' }}>Staff portal</span>
+        <a href="#/" className="brand" style={{ padding: '0 6px', textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif" style={{ fontSize: 22 }}>Civi</span></a>
+        <span className="eyebrow" style={{ margin: '2px 0 22px 31px' }}>Mableton staff portal</span>
         {[['open', 'Inbox'], ['resolved', 'Resolved']].map(([k, l]) => (
           <button key={k} className="nav-btn" aria-current={(view === 'inbox' && filter === k) || (view === 'detail' && k === 'open') ? 'page' : undefined} onClick={() => { setView('inbox'); setFilter(k); }}>
             {l}<span className="mono" style={{ fontSize: 12 }}>{cnt(k)}</span>
@@ -89,7 +89,7 @@ export default function Staff() {
       </aside>
       <main>
         <div className="portal-top">
-          <a href="#/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif">Staff portal</span></a>
+          <a href="#/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif">Civi staff</span></a>
           {deptSelect}
         </div>
 

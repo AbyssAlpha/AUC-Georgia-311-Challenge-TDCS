@@ -1,0 +1,22 @@
+{
+  "name": "Civi for the City of Mableton",
+  "short_name": "Civi",
+  "description": "Report a problem to the City of Mableton. Civi sends it to the right department, and city staff reply in the app. A CivIQ product.",
+  "id": "/",
+  "start_url": "/#/resident",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F7F5F0",
+  "theme_color": "#1E5C4A",
+  "categories": ["government", "utilities"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Report a problem", "url": "/#/resident", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Staff portal", "url": "/#/staff", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

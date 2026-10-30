@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { DEPTS, OUTSIDE, ME, PIN, deptNames, joinList } from '../shared/data.js';
 import { useStore, today, nowTime, patchComplaint } from '../shared/store.js';
 import { triage } from '../shared/ai.js';
+import { InstallButton } from '../shared/install.jsx';
 
 const STATUS = { Received: ['var(--blue-bg)', 'var(--blue)'], 'In progress': ['var(--amber-bg)', 'var(--amber)'], Resolved: ['var(--ok-bg)', 'var(--green-d)'] };
 const residentStatus = (s) => (s === 'New' ? 'Received' : s);
@@ -9,7 +10,7 @@ const Pill = ({ status }) => { const s = residentStatus(status); const [bg, fg] 
 
 let uid = 0;
 const mk = (m) => ({ ...m, key: ++uid });
-const GREET = () => [mk({ from: 'bot', text: `Hi ${ME.name.split(' ')[0]}. What problem would you like to report? Describe it in your own words.` })];
+const GREET = () => [mk({ from: 'bot', text: `Hi ${ME.name.split(' ')[0]}, I'm Civi. What problem would you like to report? Describe it in your own words.` })];
 const QUICK_ISSUES = [
   ["There's a pothole on my street", 'Pothole'],
   ['The streetlight on my street is out', 'Streetlight out'],
@@ -141,10 +142,10 @@ export default function Resident() {
 
   return (
     <div className="phone-wrap">
-      <div className="phone" role="application" aria-label="Mableton resident app">
+      <div className="phone" role="application" aria-label="Civi resident app">
         <div className="appbar">
-          <a href="#/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif" style={{ fontSize: 17 }}>City of Mableton</span></a>
-          {showTabs && <span className="eyebrow">311</span>}
+          <a href="#/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif" style={{ fontSize: 20 }}>Civi</span></a>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><InstallButton small /><span className="eyebrow">Mableton</span></span>
         </div>
 
         {screen === 'signin' && <SignIn auth={auth} setAuth={setAuth} onDone={(create) => (create ? setScreen('verify') : resetChat())} />}

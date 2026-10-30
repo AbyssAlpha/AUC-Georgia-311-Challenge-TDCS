@@ -1,6 +1,8 @@
-# Mableton 311
+# Civi
 
-A civic complaint app for the City of Mableton, Georgia. Built for the Georgia 311 Challenge, **Tiny Desk, Civic Style** track.
+**Civi is a CivIQ product.** CivIQ connects residents with their elected officials. Civi connects them with their city services.
+
+This is the Civi pilot for the City of Mableton, Georgia. Built for the Georgia 311 Challenge, **Tiny Desk, Civic Style** track.
 
 **Live demo:** _add your Vercel link here_
 
@@ -9,6 +11,15 @@ Mableton runs with a small staff of about 60 people. Every report that lands in 
 | Resident app | Staff portal |
 |---|---|
 | ![Resident review screen](docs/resident-review.png) | ![Staff detail with AI draft](docs/staff-detail.png) |
+
+## Install it on your phone
+
+Civi is an installable web app. No app store needed.
+
+- **iPhone:** open the link in Safari, tap **Share**, then **Add to Home Screen**.
+- **Android:** open the link in Chrome and tap **Install Civi** (or **Add to Home screen** in the menu).
+
+It opens full screen with its own icon, goes straight to the resident app, and loads even without a signal. Reports and AI sorting still need a connection.
 
 ## How it works
 
@@ -85,7 +96,8 @@ src/
     ai.js            Calls /api and falls back to keyword rules
     data.js          Departments, outside agencies, keyword rules, sample data
     store.js         Demo data kept in the browser, synced across tabs
-public/favicon.svg
+    install.jsx      Install button for the installable app
+public/              Favicon, app manifest, offline service worker, app icons
 docs/                README screenshots
 extras/              Files not used by the app (Java, prototype HTML, XML)
 ```
@@ -95,6 +107,12 @@ extras/              Files not used by the app (Java, prototype HTML, XML)
 - **Pilot:** one department (Public Works) for 60 days, with staff using the portal next to their current inbox.
 - **Before launch:** confirm the department list and outside agencies with the city, choose a residency check, and move storage from the browser to a city managed database.
 - **Measure:** time to first reply, reports reassigned, and reports missing a location.
+
+## Roadmap to the app stores
+
+1. **Now:** installable web app (this repo).
+2. **After the pilot:** wrap the same screens in Expo, the stack CivIQ already uses, for the App Store and Google Play.
+3. **With the store release:** a city managed database, real sign in, and push notifications when staff reply.
 
 ## Prototype limits
 

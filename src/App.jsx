@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Resident from './resident/Resident.jsx';
 import Staff from './staff/Staff.jsx';
 import { resetDemo } from './shared/store.js';
+import { InstallButton } from './shared/install.jsx';
 
 const route = () => (window.location.hash.replace(/^#\/?/, '') || 'home').split('/')[0];
 
@@ -13,7 +14,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', f);
   }, []);
   useEffect(() => {
-    document.title = r === 'resident' ? 'Report a problem · Mableton 311' : r === 'staff' ? 'Staff portal · Mableton 311' : 'Mableton 311';
+    document.title = r === 'resident' ? 'Report a problem · Civi' : r === 'staff' ? 'Staff portal · Civi' : 'Civi · City of Mableton';
   }, [r]);
   if (r === 'resident') return <Resident />;
   if (r === 'staff') return <Staff />;
@@ -24,7 +25,7 @@ function Home() {
   return (
     <div className="landing">
       <div className="landing-inner">
-        <div className="brand"><div className="diamond" /><span className="serif" style={{ fontSize: 19 }}>City of Mableton</span></div>
+        <div className="brand"><div className="diamond" /><span className="serif" style={{ fontSize: 24 }}>Civi</span><span className="eyebrow" style={{ marginLeft: 4, flex: 1 }}>for the City of Mableton</span><InstallButton small /></div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <span className="eyebrow">Georgia 311 Challenge · Tiny Desk, Civic Style</span>
           <h1>Report a problem in two minutes. Staff get it already sorted.</h1>
@@ -51,7 +52,7 @@ function Home() {
           <div><b>A human approves</b><span>AI only drafts. Nothing reaches a resident until a staff member reads, edits and sends it.</span></div>
         </div>
         <div className="foot">
-          <span>Prototype. Names, addresses and complaints are sample data. Free to run on the Gemini API free tier. Uses public information only.</span>
+          <span>Civi is a CivIQ product. Prototype. Names, addresses and complaints are sample data. Free to run on the Gemini API free tier. Uses public information only.</span>
           <button className="btn ghost sm" onClick={() => { resetDemo(); alert('Demo data reset.'); }}>Reset demo data</button>
         </div>
       </div>
