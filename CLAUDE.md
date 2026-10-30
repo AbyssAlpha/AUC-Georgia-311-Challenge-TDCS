@@ -12,11 +12,11 @@ Civi is a CivIQ product. CivIQ connects residents with their elected officials; 
 
 ## Stack
 
-- Layout: `src/resident/` (resident app), `src/staff/` (staff portal), `src/shared/` (ai, data, store, install button used by both). `extras/` holds teammate files the app does not use.
+- Layout: `src/resident/` (resident app), `src/staff/` (staff portal and `Moderation.jsx`), `src/community/` (Community tab), `src/shared/` (ai, data, store, map, reactions, install button used by both). `extras/` holds teammate files the app does not use.
 - Vite + React 18, plain CSS (`src/styles.css`, design tokens on `:root`). No router library; hash routes `#/`, `#/resident`, `#/staff` in `src/App.jsx`.
 - Vercel serverless functions in `/api` (Node, ESM). Files starting with `_` are helpers, not routes.
 - Gemini via REST (`api/_gemini.js`), model from `GEMINI_MODEL` or `gemini-flash-latest`, JSON output with a response schema.
-- Demo data in browser localStorage (`src/shared/store.js`, key `civi.mableton.v2`), synced across tabs so the resident app and staff portal update each other.
+- Demo data in browser localStorage (`src/shared/store.js`, key `civi.mableton.v3`), synced across tabs so the resident app and staff portal update each other.
 - Installable web app: `public/manifest.webmanifest`, `public/sw.js` (never caches `/api`), icons in `public/icons/`, install button in `src/shared/install.jsx`.
 - Maps in `src/shared/map.jsx`: Leaflet + OpenStreetMap tiles (no key) and Nominatim reverse lookup (keep it to 1 request per second, only on pin moves). Leaflet is loaded lazily. Do not switch to Google Maps JS (needs a billing account); link out to Google Maps instead.
 
@@ -27,6 +27,9 @@ Civi is a CivIQ product. CivIQ connects residents with their elected officials; 
 - `/api` routes cap input length and rate limit per IP (20 per minute).
 - Out of scope issues (water, schools, property tax, GDOT) point to the outside agency and send nothing.
 - Staff alerts (areas of concern) are posted by staff only, expire, and are never shown to residents or created by AI. Emergencies are never collected; the 911 screen comes first.
+- Community feed: a city report is shown only if the resident ticked share (`share.asked`) AND staff turned on `shared`. Show only `publicTitle`, `publicBlock` (no house numbers), department, status, date. Never name, email, phone or address. `canShare()` blocks Code Enforcement reports.
+- Reaction sets are fixed: metoo, stillbroken, civic (2 or 3 of the 5 CIVIC labels). Thank the crew is added automatically when Resolved. `/api/suggest-reactions` and `suggestReactions()` (6s timeout) must validate against the fixed lists; fallback is `keywordReactions()`. Label source as "Suggested by Civi" (Gemini) or "Suggested by keyword rules".
+- Neighbor posts: residents report posts and comments; staff keep or take down with a reason. 3 reports from different people hide a post until staff review. AI never moderates.
 
 ## Commands
 
@@ -47,7 +50,7 @@ Deploy: push to `main` on GitHub; Vercel redeploys automatically. The live repo 
 
 ## Status
 
-- Done: resident chat flow, review and send, complaint threads, departments page, staff inbox per department with search, filters, Gemini drafted replies, resolve, reopen, reassign, installable app with offline shell, real map pins, staff city map with status pins and staff alerts.
+- Done: resident chat flow, review and send, complaint threads, departments page, staff inbox per department with search, filters, Gemini drafted replies, resolve, reopen, reassign, installable app with offline shell, real map pins, staff city map with status pins and staff alerts, Community tab (shared city reports with reaction sets and Thank the crew, neighbor posts with categories, custom categories, tags, comments, reporting), AI suggested reactions with keyword fallback, staff share toggle and community moderation.
 - Placeholders: sign in, residency verification, and photos are simulated.
 - Roadmap after Demo Day: wrap in Expo (CivIQ's stack) for the App Store and Google Play, move storage to a real database, real auth, push notifications for staff replies.
 - Other deliverables (not in this repo): two page project brief, demo video, path to adoption plan. The README has a starter adoption plan.

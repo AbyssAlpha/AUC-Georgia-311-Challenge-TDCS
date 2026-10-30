@@ -26,7 +26,7 @@ Earlier messages:
 ${thread || '(none)'}`;
   try {
     const out = await gemini({ system: SYSTEM, user, schema: SCHEMA, temperature: 0.5 });
-    res.status(200).json({ reply: clip(out.reply, 900).replace(/[–—]/g, ',') });
+    res.status(200).json({ reply: clip(out.reply, 900).replace(/[\u2013\u2014]/g, ',') });
   } catch (e) {
     res.status(502).json({ error: 'AI unavailable' });
   }

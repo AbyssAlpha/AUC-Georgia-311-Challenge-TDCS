@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DEPTS, deptName, deptNames, joinList } from '../shared/data.js';
+import { DEPTS, deptName, deptNames, joinList, postButtons, reactionCount, canShare } from '../shared/data.js';
 import { useStore, today, patchComplaint } from '../shared/store.js';
 import { draftStaffReply } from '../shared/ai.js';
+import { ReactionBar } from '../shared/reactions.jsx';
+import Moderation from './Moderation.jsx';
 import { MapView, CityMap, googleMapsUrl, liveAlerts, alertsNear, ALERT_TYPES, STATUS_COLORS, MABLETON } from '../shared/map.jsx';
 
 const STATUS = { New: ['var(--blue-bg)', 'var(--blue)'], 'In progress': ['var(--amber-bg)', 'var(--amber)'], Resolved: ['var(--ok-bg)', 'var(--green-d)'] };
@@ -52,6 +54,13 @@ export default function Staff() {
   function clearAlert(id) {
     update((s) => ({ ...s, alerts: (s.alerts || []).filter((a) => a.id !== id) }));
     flash('Alert cleared');
+  }
+
+  const toReview = (store.posts || []).reduce((n, p) => n + (p.reports?.length && p.status !== 'removed' ? 1 : 0) + p.comments.filter((c) => c.reports?.length && c.status !== 'removed').length, 0);
+
+  function setShared(on) {
+    patchComplaint(update, sel, (c) => ({ ...c, shared: on, thread: [...c.thread, { event: true, text: on ? 'Shared to the community feed by ' + D.staff : 'Removed from the community feed by ' + D.staff, date: today() }] }));
+    flash(on ? 'Shared to the community feed' : 'Removed from the community feed');
   }
 
   function openDetail(id, from = 'inbox') {
@@ -109,6 +118,9 @@ export default function Staff() {
         <button className="nav-btn" aria-current={view === 'map' || (view === 'detail' && back === 'map') ? 'page' : undefined} onClick={() => setView('map')}>
           City map{alerts.length > 0 && <span className="mono" style={{ fontSize: 12, color: 'var(--red)' }}>{alerts.length} alert{alerts.length > 1 ? 's' : ''}</span>}
         </button>
+        <button className="nav-btn" aria-current={view === 'community' || (view === 'detail' && back === 'community') ? 'page' : undefined} onClick={() => setView('community')}>
+          Community{toReview > 0 && <span className="mono" style={{ fontSize: 12, color: 'var(--red)' }}>{toReview} to review</span>}
+        </button>
         <div style={{ flex: 1 }} />
         <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, padding: '0 6px 16px' }}>AI sorts and drafts. Staff approve every message before a resident sees it.</div>
         {deptSelect}
@@ -116,9 +128,13 @@ export default function Staff() {
       <main>
         <div className="portal-top">
           <a href="#/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}><div className="diamond" /><span className="serif">Civi staff</span></a>
-          <button className="btn ghost sm" onClick={() => setView(view === 'map' ? 'inbox' : 'map')}>{view === 'map' ? 'Inbox' : 'City map'}</button>
+          <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {[['inbox', 'Inbox'], ['map', 'City map'], ['community', 'Community' + (toReview ? ` (${toReview})` : '')]].filter(([k]) => k !== view).map(([k, l]) => <button key={k} className="btn ghost sm" onClick={() => setView(k)}>{l}</button>)}
+          </span>
           {deptSelect}
         </div>
+
+        {view === 'community' && <Moderation store={store} update={update} staff={D.staff} flash={flash} onOpen={(id) => openDetail(id, 'community')} />}
 
         {view === 'map' && (
           <div className="content">
@@ -220,7 +236,7 @@ export default function Staff() {
         {view === 'detail' && cur && (
           <div className="content" style={{ gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <button className="link" onClick={() => setView(back)}>{back === 'map' ? '← City map' : '← Inbox'}</button>
+              <button className="link" onClick={() => setView(back)}>{{ map: '← City map', community: '← Community' }[back] || '← Inbox'}</button>
               <span className="mono" style={{ fontSize: 13, color: 'var(--muted)' }}>{cur.id}</span>
               <Pill status={cur.status} />
             </div>
@@ -289,6 +305,26 @@ export default function Staff() {
                   <div><b>Routed to</b><br />{joinList(deptNames(cur.depts))}</div>
                   <div><b>Summary</b><br />{cur.summary}</div>
                   <span className={'ai-tag' + (cur.source === 'gemini' ? '' : ' kw')}>{cur.source === 'gemini' ? 'Sorted by Gemini' : 'Sorted by keyword rules'}</span>
+                </div>
+                <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14 }}>
+                  <span className="eyebrow">Community feed</span>
+                  {(() => {
+                    const why = !canShare(cur) ? 'Code Enforcement reports are about a specific property, so they are never shared.'
+                      : !cur.share?.asked ? 'The resident did not ask to share this report.' : '';
+                    return <>
+                      <button className="switch" role="switch" aria-checked={!!cur.shared && !why} disabled={!!why} onClick={() => setShared(!cur.shared)}>
+                        <span className="track" aria-hidden="true" />Share to community feed
+                      </button>
+                      {why
+                        ? <span style={{ color: 'var(--muted)', lineHeight: 1.5 }}>{why}</span>
+                        : <span style={{ color: 'var(--muted)', lineHeight: 1.5 }}>Neighbors see the title, street, department, status and date. Never the resident's name or address. You can turn this off at any time.</span>}
+                      {cur.share?.asked && canShare(cur) && <>
+                        <span>Reactions the resident picked{cur.share.suggested && cur.share.suggested !== cur.share.set ? ' (changed from the suggestion)' : ''}:</span>
+                        <ReactionBar c={cur} keys={postButtons(cur)} />
+                        {cur.status === 'Resolved' && <span><b>{reactionCount(cur, 'thanks')}</b> {reactionCount(cur, 'thanks') === 1 ? 'neighbor' : 'neighbors'} thanked the crew.</span>}
+                      </>}
+                    </>;
+                  })()}
                 </div>
                 <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14 }}>
                   <span className="eyebrow">Resident</span>

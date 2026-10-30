@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { DEPTS, OUTSIDE, ME, deptNames, joinList } from '../shared/data.js';
+import { DEPTS, OUTSIDE, ME, deptNames, joinList, REACTION_SETS, REACTIONS, CIVIC, setButtons, canShare } from '../shared/data.js';
 import { useStore, today, nowTime, patchComplaint } from '../shared/store.js';
-import { triage } from '../shared/ai.js';
+import { triage, suggestReactions } from '../shared/ai.js';
+import { ReactionBar } from '../shared/reactions.jsx';
+import Community from '../community/Community.jsx';
 import { InstallButton } from '../shared/install.jsx';
 import { MapView, lookupAddress, nearMableton, fmtCoords } from '../shared/map.jsx';
 
@@ -37,6 +39,8 @@ export default function Resident() {
   const [chat, setChat] = useState({ messages: GREET(), step: 'issue', busy: false, input: '', pinOpen: false });
   const [report, setReport] = useState({ issue: '', depts: [], label: '', summary: '', location: '', coords: null, photo: false, source: '' });
   const [draft, setDraft] = useState({ subject: '', body: '', addOpen: false });
+  const NO_SHARE = { on: false, sug: null, loading: false, set: 'metoo', civic: [] };
+  const [share, setShare] = useState(NO_SHARE);
   const [threadId, setThreadId] = useState(null);
   const [reply, setReply] = useState('');
   const [lastRef, setLastRef] = useState('');
@@ -102,6 +106,7 @@ export default function Resident() {
     timers.current.forEach(clearTimeout);
     setChat({ messages: GREET(), step: 'issue', busy: false, input: '', pinOpen: false });
     setReport({ issue: '', depts: [], label: '', summary: '', location: '', coords: null, photo: false, source: '' });
+    setShare(NO_SHARE);
     setScreen('chat');
   }
 
@@ -110,15 +115,28 @@ export default function Resident() {
     setDraft((d) => ({ ...d, body: d.body.replace(/^Hello [^,\n]*,/, 'Hello ' + (joinList(deptNames(ids)) || 'City of Mableton') + ',') }));
   }
 
+  async function toggleShare(on) {
+    setShare((s) => ({ ...s, on }));
+    if (!on || share.sug || share.loading) return;
+    setShare((s) => ({ ...s, loading: true }));
+    const sug = await suggestReactions({ issue: report.issue, label: report.label, depts: report.depts });
+    setShare((s) => ({ ...s, loading: false, sug, set: sug.set, civic: sug.civic.length ? sug.civic : ['unsafe', 'kids'] }));
+  }
+
+  const shareOn = share.on && canShare(report);
+  const civicOk = share.set !== 'civic' || (share.civic.length >= 2 && share.civic.length <= 3);
+
   function send() {
-    if (!report.depts.length) return;
+    if (!report.depts.length || (shareOn && (share.loading || !civicOk))) return;
     let id;
     update((s) => {
       id = 'MBL-2026-' + String(s.nextRef).padStart(5, '0');
       const c = {
         id, name: ME.name, email: ME.email, phone: ME.phone, subject: draft.subject, summary: report.summary || report.issue.slice(0, 110),
         location: report.location, coords: report.coords, date: today(), time: nowTime(), status: 'New', depts: [...report.depts], photo: report.photo,
-        source: report.source, body: draft.body, thread: [{ event: true, text: 'Sent to ' + joinList(deptNames(report.depts)), date: today() }],
+        source: report.source, body: draft.body,
+        share: shareOn ? { asked: true, set: share.set, civic: share.set === 'civic' ? share.civic : [], suggested: share.sug?.set, source: share.sug?.source } : { asked: false },
+        shared: false, reactions: {}, taps: {}, thread: [{ event: true, text: 'Sent to ' + joinList(deptNames(report.depts)), date: today() }],
       };
       return { ...s, nextRef: s.nextRef + 1, complaints: [c, ...s.complaints] };
     });
@@ -139,7 +157,7 @@ export default function Resident() {
   }
 
   const tabKey = screen === 'thread' ? 'list' : screen;
-  const showTabs = ['chat', 'list', 'depts', 'thread'].includes(screen);
+  const showTabs = ['chat', 'list', 'community', 'depts', 'thread'].includes(screen);
 
   return (
     <div className="phone-wrap">
@@ -197,7 +215,8 @@ export default function Resident() {
             <label className="field">Subject<input value={draft.subject} onChange={(e) => setDraft((d) => ({ ...d, subject: e.target.value }))} /></label>
             <label className="field">Message<textarea rows={10} value={draft.body} onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))} /></label>
             {report.photo && <div className="photo-ph" style={{ height: 120 }}>your photo</div>}
-            <button className="btn" disabled={!report.depts.length} onClick={send}>
+            <ShareSection report={report} share={share} setShare={setShare} onToggle={toggleShare} civicOk={civicOk} />
+            <button className="btn" disabled={!report.depts.length || (shareOn && (share.loading || !civicOk))} onClick={send}>
               {report.depts.length === 1 ? 'Send to ' + deptNames(report.depts)[0] : report.depts.length ? `Send to ${report.depts.length} departments` : 'Send'}
             </button>
             <button className="link" onClick={resetChat}>Start over</button>
@@ -250,6 +269,8 @@ export default function Resident() {
           </>
         )}
 
+        {screen === 'community' && <Community />}
+
         {screen === 'depts' && (
           <div className="screen"><div className="pad">
             <h2 style={{ margin: 0, fontSize: 22 }}>City departments</h2>
@@ -263,7 +284,7 @@ export default function Resident() {
 
         {showTabs && (
           <nav className="tabs" aria-label="Main">
-            {[['chat', 'Report'], ['list', 'My complaints'], ['depts', 'Departments']].map(([k, l]) => (
+            {[['chat', 'Report'], ['list', 'My complaints'], ['community', 'Community'], ['depts', 'Departments']].map(([k, l]) => (
               <button key={k} aria-current={tabKey === k ? 'page' : undefined} onClick={() => (k === 'chat' && ['stopped', 'drafting'].includes(chat.step) ? resetChat() : setScreen(k))}>
                 {l}{k === 'list' && mine.some((c) => c.unread) ? ' •' : ''}
               </button>
@@ -277,6 +298,62 @@ export default function Resident() {
         <span>Open the <a href="#/staff" target="_blank" rel="noreferrer">staff portal</a> in another tab. Your report shows up there, and staff replies show up here.</span>
         <span>Residency check and sign in are placeholders until the city picks a method.</span>
       </aside>
+    </div>
+  );
+}
+
+function ShareSection({ report, share, setShare, onToggle, civicOk }) {
+  if (!canShare(report)) {
+    return (
+      <div className="field"><span>Community reactions</span>
+        <span style={{ fontWeight: 400, color: 'var(--muted)', lineHeight: 1.5 }}>Code Enforcement reports are about a specific property, so they are never shared to the community feed.</span>
+      </div>
+    );
+  }
+  const sug = share.sug;
+  const pickCivic = (k, on) => setShare((s) => ({ ...s, civic: on ? [...s.civic, k].slice(0, 3) : s.civic.filter((x) => x !== k) }));
+  return (
+    <div className="field" style={{ gap: 12 }}><span>Community reactions</span>
+      <label className="check-row">
+        <input type="checkbox" checked={share.on} onChange={(e) => onToggle(e.target.checked)} />
+        <span>Share to the community feed (city staff review it first, and your name and address are never shown)</span>
+      </label>
+      {share.on && share.loading && <span style={{ fontWeight: 400, color: 'var(--muted)' }} role="status">Civi is picking reactions that fit…</span>}
+      {share.on && sug && (
+        <fieldset style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <legend className="sr">Pick the reactions neighbors can tap</legend>
+          <div className="ai-box" style={{ gap: 4 }}>
+            <span className={'ai-tag' + (sug.source === 'gemini' ? '' : ' kw')}>{sug.source === 'gemini' ? 'Suggested by Civi' : 'Suggested by keyword rules'}</span>
+            <span style={{ fontWeight: 400, lineHeight: 1.5 }}>{sug.reason}</span>
+          </div>
+          {Object.entries(REACTION_SETS).map(([id, s]) => (
+            <label key={id} className="set-card">
+              <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <input type="radio" name="react-set" value={id} checked={share.set === id} onChange={() => setShare((x) => ({ ...x, set: id }))} />
+                <b style={{ flex: 1 }}>{s.name}</b>
+                {sug.set === id && <span className="eyebrow" style={{ color: 'var(--green)' }}>{sug.source === 'gemini' ? 'Suggested by Civi' : 'Suggested by keyword rules'}</span>}
+              </span>
+              <span style={{ fontSize: 14, color: 'var(--muted)' }}>{s.desc}</span>
+              <ReactionBar keys={setButtons(id, share.civic)} />
+            </label>
+          ))}
+          {share.set === 'civic' && (
+            <div className="card" style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 14 }}>Choose 2 or 3 buttons</span>
+              {CIVIC.map((k) => {
+                const on = share.civic.includes(k);
+                return (
+                  <label key={k} className="check-row" style={{ alignItems: 'center' }}>
+                    <input type="checkbox" checked={on} disabled={!on && share.civic.length >= 3} onChange={(e) => pickCivic(k, e.target.checked)} />
+                    <span>{REACTIONS[k].label}</span>
+                  </label>
+                );
+              })}
+              {!civicOk && <span className="err">Pick at least 2.</span>}
+            </div>
+          )}
+        </fieldset>
+      )}
     </div>
   );
 }

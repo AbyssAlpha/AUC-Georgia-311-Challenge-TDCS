@@ -1,6 +1,6 @@
 // Client side AI helpers. The Gemini key never reaches the browser:
 // these call our own /api routes, which hold the key on the server.
-import { EMERG, keywordTriage, OUTSIDE, DEPTS } from './data.js';
+import { EMERG, keywordTriage, OUTSIDE, DEPTS, CIVIC, REACTIONS, keywordReactions } from './data.js';
 
 async function post(path, body, ms = 7000) {
   const ctl = new AbortController();
@@ -41,4 +41,16 @@ export async function draftStaffReply(complaint, staffName, deptLabel) {
     text: `Thanks for reporting this, ${first}. ${deptLabel} has received your report about "${complaint.subject.toLowerCase()}" and a staff member will take a look. We'll post an update here as soon as we know more.`,
     source: 'template',
   };
+}
+
+// Suggests which reaction set fits a report. The resident can always pick another.
+export async function suggestReactions({ issue, label, depts }) {
+  try {
+    const r = await post('/api/suggest-reactions', { issue, label, depts }, 6000);
+    const civic = (r.civicButtons || []).map((b) => CIVIC.find((k) => REACTIONS[k].label === b)).filter(Boolean);
+    const reason = String(r.reason || '').replace(/\s*[\u2013\u2014]\s*/g, ', ').trim();
+    const ok = ['metoo', 'stillbroken', 'civic'].includes(r.set) && reason && reason.split(/\s+/).length <= 25 && (r.set !== 'civic' || civic.length >= 2);
+    if (ok) return { set: r.set, civic: r.set === 'civic' ? [...new Set(civic)].slice(0, 3) : [], reason, source: 'gemini' };
+  } catch (e) { /* fall through to keywords */ }
+  return keywordReactions({ issue, label });
 }
