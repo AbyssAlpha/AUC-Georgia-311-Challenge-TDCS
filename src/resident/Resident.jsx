@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { DEPTS, OUTSIDE, ME, PIN, deptNames, joinList } from './data.js';
-import { useStore, today, nowTime, patchComplaint } from './store.js';
-import { triage } from './ai.js';
+import { DEPTS, OUTSIDE, ME, PIN, deptNames, joinList } from '../shared/data.js';
+import { useStore, today, nowTime, patchComplaint } from '../shared/store.js';
+import { triage } from '../shared/ai.js';
 
 const STATUS = { Received: ['var(--blue-bg)', 'var(--blue)'], 'In progress': ['var(--amber-bg)', 'var(--amber)'], Resolved: ['var(--ok-bg)', 'var(--green-d)'] };
 const residentStatus = (s) => (s === 'New' ? 'Received' : s);
