@@ -66,17 +66,28 @@ vercel dev
 
 ## Project layout
 
+The two features live in their own folders. Anything both of them use sits in `shared/`.
+
 ```
-api/            Server functions (hold the Gemini key)
-  triage.js       Sorts a report to a department, outside agency, or 911
-  draft-reply.js  Drafts a staff reply for review
-  _gemini.js      Shared Gemini call, input limits, rate limit
+api/                 Server functions (hold the Gemini key)
+  triage.js          Sorts a report to a department, outside agency, or 911 (Resident)
+  draft-reply.js     Drafts a staff reply for review (Staff)
+  _gemini.js         Shared Gemini call, input limits, rate limit
 src/
-  Resident.jsx    Resident mobile app
-  Staff.jsx       Staff desktop portal
-  ai.js           Calls /api and falls back to keyword rules
-  data.js         Departments, outside agencies, keyword rules, sample data
-  store.js        Demo data kept in the browser, synced across tabs
+  main.jsx           Entry point
+  App.jsx            Home page and hash router (#/resident, #/staff)
+  styles.css         Styles for both features
+  resident/
+    Resident.jsx     Feature 1: resident mobile app
+  staff/
+    Staff.jsx        Feature 2: staff desktop portal
+  shared/
+    ai.js            Calls /api and falls back to keyword rules
+    data.js          Departments, outside agencies, keyword rules, sample data
+    store.js         Demo data kept in the browser, synced across tabs
+public/favicon.svg
+docs/                README screenshots
+extras/              Files not used by the app (Java, prototype HTML, XML)
 ```
 
 ## Path to adoption
