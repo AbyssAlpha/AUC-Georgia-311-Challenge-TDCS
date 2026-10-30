@@ -62,6 +62,9 @@ function el(tag, attrs, ...kids) {
 }
 
 // Every report with a pin, colored by status, plus staff alert circles. placing: show a center pin for a new alert.
+// Residents only ever see a pin rounded to about one block (3 decimals is roughly 100 m), never the exact spot.
+export const blockCoords = (p) => ({ lat: Math.round(p.lat * 1000) / 1000, lng: Math.round(p.lng * 1000) / 1000 });
+
 export function CityMap({ reports, alerts, onOpen, placing, onCenter, height = 460 }) {
   const box = useRef(null);
   const map = useRef(null);
@@ -105,12 +108,17 @@ export function CityMap({ reports, alerts, onOpen, placing, onCenter, height = 4
     });
     reports.forEach((c) => {
       const color = STATUS_COLORS[c.status] || STATUS_COLORS.New;
-      const btn = el('button', { className: 'btn sm', textContent: 'Open report', type: 'button' });
-      btn.addEventListener('click', () => fns.current.onOpen?.(c.id));
+      const pop = c.pop || { title: c.subject, line: `${c.status} · ${c.location}`, small: c.id };
+      const kids = [el('b', { textContent: pop.title }), el('span', { textContent: pop.line }), el('small', { textContent: pop.small })];
+      if (fns.current.onOpen) {
+        const btn = el('button', { className: 'btn sm', textContent: 'Open report', type: 'button' });
+        btn.addEventListener('click', () => fns.current.onOpen?.(c.id));
+        kids.push(btn);
+      }
       Lf.marker([c.coords.lat, c.coords.lng], {
-        title: `${c.subject}, ${c.status}`, alt: c.subject,
+        title: `${pop.title}, ${c.status}`,
         icon: Lf.divIcon({ className: 'dot-mark', html: `<span style="background:${color}"></span>`, iconSize: [18, 18], iconAnchor: [9, 9] }),
-      }).bindPopup(el('div', { className: 'map-pop' }, el('b', { textContent: c.subject }), el('span', { textContent: `${c.status} · ${c.location}` }), el('small', { textContent: c.id }), btn))
+      }).bindPopup(el('div', { className: 'map-pop' }, ...kids))
         .addTo(layer.current);
     });
   }, [ready, reports, alerts]);
@@ -118,7 +126,7 @@ export function CityMap({ reports, alerts, onOpen, placing, onCenter, height = 4
   if (failed) return <div className="map-art map-off" style={{ height }}><span>Map needs a connection</span></div>;
   return (
     <div className="map-wrap" style={{ height, borderRadius: 12, border: '1px solid var(--line)' }}>
-      <div ref={box} className="map-box" role="application" aria-label="City map of reports and alerts. Use the arrow keys to move and Tab to reach each pin." />
+      <div ref={box} className="map-box" role="application" aria-label={(alerts.length ? 'City map of reports and alerts.' : 'City map of reports.') + ' Use the arrow keys to move and Tab to reach each pin.'} />
       {placing && <div className="pin-mark center" aria-hidden="true" />}
     </div>
   );

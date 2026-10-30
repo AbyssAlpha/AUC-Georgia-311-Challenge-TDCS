@@ -1,10 +1,11 @@
 // Community tab. Two feeds in one place:
 // City reports: reports staff approved for sharing, with the reactions the resident picked. Never a name or house number.
 // Neighbor posts: residents post to each other. Anyone can report a post or comment, and city staff decide what stays up.
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ME, EMERG, POST_CATS, OTHER_CAT, REPORT_REASONS, HIDE_AT, deptNames, joinList, postButtons, canShare, publicBlock, publicTitle } from '../shared/data.js';
 import { useStore, today, nowTime, toggleReaction, patchPost, patchComment } from '../shared/store.js';
 import { ReactionBar, Icon } from '../shared/reactions.jsx';
+import { CityMap, STATUS_COLORS, blockCoords } from '../shared/map.jsx';
 
 const ME_SHORT = ME.name.split(' ')[0] + ' ' + ME.name.split(' ')[1][0] + '.';
 const STATUS = { New: ['var(--blue-bg)', 'var(--blue)', 'Received'], 'In progress': ['var(--amber-bg)', 'var(--amber)', 'In progress'], Resolved: ['var(--ok-bg)', 'var(--green-d)', 'Resolved'] };
@@ -22,8 +23,9 @@ export default function Community() {
       <div className="filters" role="group" aria-label="Feed">
         <button aria-pressed={feed === 'reports'} onClick={() => setFeed('reports')}>City reports</button>
         <button aria-pressed={feed === 'posts'} onClick={() => setFeed('posts')}>Neighbor posts</button>
+        <button aria-pressed={feed === 'map'} onClick={() => setFeed('map')}>Map</button>
       </div>
-      {feed === 'reports' ? <CityReports /> : <NeighborPosts />}
+      {feed === 'reports' ? <CityReports /> : feed === 'posts' ? <NeighborPosts /> : <ReportsMap />}
     </div></div>
   );
 }
@@ -51,6 +53,34 @@ function CityReports() {
     </>
   );
 }
+
+// View only. Same rules as the City reports feed, and each pin is rounded to about a block.
+function ReportsMap() {
+  const [store] = useStore();
+  const [resolved, setResolved] = useState(false);
+  const all = useMemo(() => store.complaints
+    .filter((c) => c.shared && c.share?.asked && canShare(c) && c.coords)
+    .map((c) => ({
+      id: c.id, status: c.status, coords: blockCoords(c.coords),
+      pop: { title: publicTitle(c.subject), line: `${(STATUS[c.status] || STATUS.New)[2]} · Near ${publicBlock(c.location)}`, small: `${joinList(deptNames(c.depts))} · ${c.date}` },
+    })), [store.complaints]);
+  const shown = useMemo(() => all.filter((c) => resolved || c.status !== 'Resolved'), [all, resolved]);
+  const noPin = store.complaints.filter((c) => c.shared && c.share?.asked && canShare(c) && !c.coords).length;
+  return (
+    <>
+      <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>Shared city reports on a map. Pins show the block, not the exact spot. Tap a pin for details.</span>
+      <label className="check-row" style={{ alignItems: 'center' }}>
+        <input type="checkbox" checked={resolved} onChange={(e) => setResolved(e.target.checked)} /><span>Show resolved</span>
+      </label>
+      <CityMap reports={shown} alerts={NO_ALERTS} height={380} />
+      <div className="legend" aria-label="Map key">
+        {Object.entries(STATUS_COLORS).filter(([s]) => resolved || s !== 'Resolved').map(([s, col]) => <span key={s}><i style={{ background: col }} />{(STATUS[s] || STATUS.New)[2]} ({shown.filter((c) => c.status === s).length})</span>)}
+      </div>
+      {noPin > 0 && <span style={{ fontSize: 13, color: 'var(--muted)' }}>{noPin} shared report{noPin > 1 ? 's have' : ' has'} no pin and only appear{noPin > 1 ? '' : 's'} in City reports.</span>}
+    </>
+  );
+}
+const NO_ALERTS = [];
 
 function NeighborPosts() {
   const [store, update] = useStore();
